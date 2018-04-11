@@ -1,15 +1,15 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>cbsdb</title>
-  </head>
-  <body>
-    <h1>Enter a Bike:</h1>
-    <form action="" method="post">
-    {% csrf_token %}
-    {{ form }}
-    <input type="submit" value="Submit" />
-</form>
-  </body>
-</html>
+{% extends "base_generic.html" %}
+
+{% block content %}
+<h1>Home of CBSDB</h1>
+
+  <p>Welcome to <em>CBSDB</em>, a Django based site.</p>
+
+<h2>Dynamic content</h2>
+
+  <p>The datebase has the following record counts:</p>
+  <ul>
+    <li><strong>Bikes:</strong> {{ num_bikes }}</li>
+  </ul>
+
+{% endblock %}
