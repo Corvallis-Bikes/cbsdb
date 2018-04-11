@@ -3,10 +3,13 @@
 This adds some more features on top of the [start
 branch](https://github.com/debboutr/cbsdb/tree/start)
 
-A few things I plan to do soon:
-- migrate all 'templates' to be contained within the app [bike] -
+Additions:
+- Master template - base_generic.html
+- Migrate all 'templates' to be contained within the app [bike] -
  I think this will be better for the case if we add standalone apps for
  login or volunteer management
-- create some example 'static' files in the [bikes] app and insure storing in
-  'bikes/static/bikes/' works
+- New index page that displays number of bikes
+- Example 'static' file [img] in bikes add
+
+A few things I plan to do soon:
 - create a page that displays bike data from a drop down menu
