@@ -1,5 +1,5 @@
 from django.shortcuts import render
-
+from django.views import generic
 from .forms import BikeForm
 from .models import Bike
 # Create your views here.
@@ -30,3 +30,6 @@ def addbike(request, template_name='add.html'):
             form.save()
     form = BikeForm(request.POST or None)
     return render(request, template_name, {'form': form})
+
+class BikeListView(generic.ListView):
+    model = Bike
