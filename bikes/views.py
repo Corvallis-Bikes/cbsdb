@@ -32,4 +32,13 @@ def addbike(request, template_name='add.html'):
     return render(request, template_name, {'form': form})
 
 class BikeListView(generic.ListView):
+    """
+    creates bike_list variable that can be used in html
+    """
+    model = Bike
+
+class BikeDetailView(generic.DetailView):
+    """
+    creates bike_list variable that can be used in html
+    """
     model = Bike
