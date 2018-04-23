@@ -1,0 +1,3419 @@
+===============
+Form_*MasterShopLog
+===============
+ Option Compare Database
+Option Explicit
+
+
+
+Private Sub CommentButton_Click()
+Dim Rst As DAO.Recordset
+Dim dBs As DAO.Database
+
+Set dBs = CurrentDb
+Set Rst = dBs.OpenRecordset("SELECT * FROM Errorlog")
+With Rst
+    .AddNew
+     !ShopDate = Date
+     !Comments = Me.CommentBox.Value
+     !Type = Me.CommentType.Value
+     .Update
+     .Close
+End With
+Me.CommentBox.Value = "SUBMITTED. Comment on bugs, errors, suggestions, complaints, or anything about the database. Leave contact information if you want a response."
+
+Set dBs = Nothing
+Set Rst = Nothing
+End Sub
+
+Private Sub Form_Open(Cancel As Integer)
+    OpeningFormData
+End Sub
+
+'Austin: Before I remove it, with this we can remove changing the rowsource.  correct???
+Private Sub OpeningFormData()
+Dim Count As Integer
+Dim checkBench As String, benchLog As String
+Dim Rst As DAO.Recordset
+Dim dBs As Database
+Dim BenchUsed As Boolean
+
+'Checking to see if anyone is still logged into a bench for today
+
+Set dBs = CurrentDb
+Set Rst = dBs.OpenRecordset("SELECT * FROM UserLog WHERE (UserLog.OnBench = True AND UserLog.Sdate = Date()) ORDER BY UserLog.Sdate, UserLog.TimeIn;", dbOpenDynaset)
+
+If Rst.RecordCount = 0 Then Exit Sub                        ' If no one has been here, no reason to run the rest of the subroutine and risk further errors
+Me.User.SetFocus
+benchLog = ""
+For Count = 1 To 5
+    BenchUsed = True
+    checkBench = "[Bench] = '" & Count & "'"
+    emptyStand (Count)                                                              'unlock the stand to allow for adding people to it
+    Rst.FindLast checkBench
+    If Not (Rst.NoMatch) Then                                                       ' Is the bench being "used"?
+        If Not IsNull(Rst!TimeOut) Then
+            BenchUsed = False                                                       ' by someone who isn't logged out?
+            TellAustin ("Person using bench " & Count & " has logged out.")         ' this is no good; if they're logged out, they shouldn't be on a bench
+        End If
+        If BenchUsed Then
+            benchLog = benchLog + Rst!NickName & " is on bench #" & Count & Chr(10)      ' debugging
+            With Me.Controls("usr" & Count)
+                .Value = Rst!NickName                         ' then form should show them on the bench
+                .Enabled = False                              ' and lock anyone else from being added to bench
+                .Locked = True
+            End With
+        End If
+    Else
+        benchLog = benchLog & "No one on bench #" & Count & Chr(10)
+    End If
+Next Count
+'MsgBox benchLog                                                ' Displays who is using the benches Austin:debugging?
+Set dBs = Nothing
+Set Rst = Nothing
+End Sub
+
+Private Sub PoliceLog_Click()
+    psWd ("PoliceLog")
+End Sub
+
+'***********************BUTTONS*************************************
+'Register''''''''''''''''''''''''''''''''''''''''''''''''''
+Private Sub Register_Click()
+psWd ("Register")
+End Sub
+'ADD/EDITS''''''''''''''''''''''''''''''''''''''''''''''''''
+Private Sub BikeLog_Click()
+psWd ("BikeLog")
+End Sub
+Private Sub UserDB_Click()
+psWd ("Waiver")
+End Sub
+Private Sub BatchBike_Click()
+psWd ("Batchbike")
+End Sub
+'SEARCHES'''''''''''''''''''''''''''''''''''''''''''''''''''
+Private Sub BikeSearch_Click()
+    'MsgBox ("Bobby: Why have a separate bike search for managers? Seems easier just to lock the editing of bikes on main search.")
+Call CloseAllForms("BikeSearchUser")
+End Sub
+Private Sub PeopleSearch_Click()
+psWd ("PeopleSearch")
+End Sub
+Private Sub SalesSearch_Click()
+psWd ("SalesSearch")
+End Sub
+Private Sub DayUseSearch_Click()
+    psWd ("DayUseSearch")
+End Sub
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'Managerial'''''''''''''''''''''''''''''''''''''''''''''''''''
+Private Sub PasswordChange_Click()
+psWd ("PasswordChange")
+End Sub
+
+Private Sub EndDayButton_Click()
+Dim Rst As DAO.Recordset
+Dim dBs As DAO.Database
+Dim ListNames As String
+
+'check that users are logged out
+Set dBs = CurrentDb
+Set Rst = dBs.OpenRecordset("SELECT * FROM UserLog WHERE UserLog.Sdate = #" & Date & "# AND UserLog.TimeOut Is Null;", dbOpenDynaset)
+If Not (Rst.RecordCount = 0) Then
+    ListNames = "Still logged in: "
+    Rst.MoveFirst
+    ListNames = ListNames & Rst!NickName
+    While (Rst.EOF = False)
+        Rst.MoveNext
+        If Rst.EOF = False Then ListNames = ListNames & ", " & Rst!NickName
+    Wend
+    MsgBox ListNames
+    Exit Sub
+' Check to see if we're taken care of first
+Else
+    Call psWd("CloseShop")
+End If
+End Sub
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+'User Bike Search''''''''''''''''''''''''''''''''''''''''''''''''
+Private Sub Search_Click()
+       Call CloseAllForms("BikeSearchUser")
+End Sub
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+'User Info ********************************************************************************
+Private Sub logedusers_AfterUpdate()
+    Me.Userinfo.Value = Me.logedusers.Value                         'bring up selected logged in user's info
+    refreshUserInfo
+End Sub
+
+Private Sub Userinfo_AfterUpdate()
+    Call refreshUserInfo
+End Sub
+
+Private Sub refreshUserInfo()                                          'Updates "Review User Info" Boxes
+
+Dim dBs As DAO.Database
+Dim Rst As DAO.Recordset
+Dim SQLstmt As String, strCriteria As String, Bikes1 As String
+
+If Me.Userinfo.Value & "" = "" Then Exit Sub                            ' No need to run program if no user is selected
+
+strCriteria = "[Nickname] = " & """" & Me.Userinfo.Value & """"         'Define user name to find
+Set dBs = CurrentDb
+
+Set Rst = dBs.OpenRecordset("People", dbOpenDynaset)
+    Rst.FindFirst strCriteria                                           'Find first occurrence of User
+If Rst.NoMatch Then
+   Call TellAustin("No user by the name " & Me.Userinfo.Value & ".")    'If no User is found with that name, error
+    Exit Sub
+Else
+       With Rst                                                  'With the User (edit, pass value, etc.)
+        Me.Volhrs.Value = !Volhrs                                'Get volunteer hours
+        Me.Benchhrs.Value = !Benchhrs                            'Get Bench hours
+        Me.Phonenm.Value = !phone
+        If IsNull(!Bikes) Then                                   'Fill owned bikes with 0 to prevent error below
+            Bikes1 = 0
+        Else
+            Bikes1 = !Bikes
+        End If
+      End With                                                          'Get Owned Bikes, searches with tab delimited string
+                                                                        'If no bikes uses 0 as string from above which returns ""
+    SQLstmt = "SELECT Bikes.[Make], Bikes.[Model]" _
+    & " FROM Bikes WHERE Bikes.[CBCID] IN (" & Bikes1 & ");"
+    Me.Bikes.RowSource = SQLstmt                                        'Set SQLstmt to list box to show owned bikes
+End If
+
+'Refresh sheet and clear variables
+Me.Refresh
+Set dBs = Nothing
+Set Rst = Nothing
+End Sub
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+'Log in users'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Private Sub Login_Click()
+Dim dBs As DAO.Database
+Dim Rst As DAO.Recordset
+Dim strCriteria As String
+
+If IsNull(Me.User.Value) Or Me.User.Value = "" Then                     'Make sure a user name is selected to prevent error
+    MsgBox ("Please select User and try again.")
+    Exit Sub
+End If
+
+strCriteria = "[Nickname] = " & """" & Me.User.Value & """" & "AND [Sdate] = Date()"            'Define Object to find
+Set dBs = CurrentDb
+Set Rst = dBs.OpenRecordset("UserLog", dbOpenDynaset)
+    Rst.FindLast strCriteria                                                                    'Find first occurrence of Object
+If Not Rst.NoMatch Then
+    If IsNull(Rst!TimeOut) Then                                                                 'If no Object is found error
+        If MsgBox("Already signed in. Change time signed in to now?", vbYesNo) = vbYes Then
+            Rst.Edit
+            Rst!TimeIn = Now()
+            Rst.Update
+        End If
+        Exit Sub
+    Else
+        If MsgBox("Sign back in?", vbYesNo) = vbNo Then Exit Sub
+    End If
+End If
+
+Set Rst = dBs.OpenRecordset("SELECT * FROM UserLog WHERE 1 = 0", dbOpenDynaset, dbSeeChanges)
+With Rst                                                               'With the Object (edit, pass value, etc.)
+    .AddNew                                                            ' add value to User log, logging user in
+    !SDate = Date
+    !TimeIn = Now()
+    !NickName = Me.User.Value
+    !Volunteering = Me.Volck.Value
+    .Update
+    .Close
+End With
+
+Me.User.Value = ""                       'reset user to nothing
+Me.Volck.Value = False                   'reset volunteering check box to false
+Call requeryUsers
+End Sub
+
+'refresh sheet and pass available users to benches'''''''''''''''''''''''''''''''''''''''''''''
+Private Sub requeryUsers()
+Dim i As Integer
+    Me.logedusers.Requery                                       'requery todays patrons
+    For i = 1 To 5                                                     'requery benches
+        Me.Controls("usr" & i).Requery
+    Next i
+End Sub
+'Start log off from patron list'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Private Sub Logoff_Click()
+Dim SC As String
+
+If IsNull(Me.logedusers.Column(4)) Then                                             'Ensure a user is selected to prevent error
+    MsgBox "No user Selected." & Chr(10) & "Please select user and try again."
+    Exit Sub
+Else
+    SC = "[ShopUseID] = " & Me.logedusers.Column(4)                                     ' Set up user search
+    Call GetOff(SC, 1)                                                                                                ' Run log off procedure
+End If
+End Sub
+'Log off all users''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Private Sub Massoff_Click()
+Dim SC As String
+Dim i As Integer
+If Not (pswdIn) Then Exit Sub
+For i = 1 To Me.logedusers.ListCount
+    Me.logedusers.Selected(i) = True
+    SC = "[ShopUseID] = " & Me.logedusers.Column(4)                                     ' Set up user search
+    Call GetOff(SC, 5)                                                                                                ' Run log off procedure
+Next i
+End Sub
+
+'Log off users'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Sub GetOff(strCriteria As String, msg As Integer)                                           ' Sub logging user out based on Shop Use ID
+Dim dBs As DAO.Database
+Dim Rst As DAO.Recordset
+Dim nicknm As String, Announce As String
+Dim TTL, PrevHrs, totalhours
+Dim vol As Boolean
+
+Set dBs = CurrentDb
+Set Rst = dBs.OpenRecordset("UserLog", dbOpenDynaset)
+Rst.FindLast strCriteria                                                           'Finds Shop Use ID
+
+If Rst.NoMatch Then                                                                'If Shop ID isn't found error
+   Call TellAustin("Error. Log in was destroyed or not found.")
+   Exit Sub
+End If
+    
+If msg <> 5 Then            'If massoff
+    If MsgBox("Sign out " & Rst!NickName & "?", vbYesNo) = vbNo Then Exit Sub        ' check with user, logging out right person?
+End If
+
+If Rst!onbench = True Then
+    If msg <> 5 Then            'If massoff
+        If MsgBox("You are still logged into a bench, 'Cancel' to have Shop Manager check your bench before leaving or 'Ok' to force log out", vbOKCancel) = vbCancel Then
+            Exit Sub
+        Else
+           Call offf(0, Rst!NickName)
+        End If
+    Else
+        Call offf(0, Rst!NickName)
+    End If
+End If
+
+If Not (IsNull(Rst!TimeOut)) Then                               'Check for already logged off error
+    If msg <> 5 Then MsgBox ("Already logged off.")             'If massoff
+    Exit Sub
+End If
+
+With Rst                                                         'Edit User Log and logging user off
+    nicknm = !NickName                                           'get nickname for userDB update
+    vol = !Volunteering                                          ' also whether the user is volunteering
+    .Edit
+    !TimeOut = Now()                                            ' log out
+    !onbench = False                                            ' and off bench (in case it's not already the case)
+    .Update
+    'find hours spent in shop today
+    totalhours = (CInt(DatePart("h", !TimeOut)) - CInt(DatePart("h", !TimeIn))) + _
+        Round((CInt(DatePart("n", !TimeOut)) - (CInt(DatePart("n", !TimeIn)))) / 60, 2)
+    If totalhours < 0 Then totalhours = totalhours + 12                 'for people signing in at 12 and leaving at 1
+
+End With
+
+''''''''''add hours to user's total ''''''''''''''''''''
+
+Set Rst = Nothing
+    strCriteria = "[Nickname] = '" & nicknm & "'"                       ' Looking for nickname
+Set Rst = dBs.OpenRecordset("People", dbOpenDynaset)                    ' Looking for person with nickname of our user
+
+Rst.FindLast strCriteria                                                ' Find first occurrence of Object (should be unique)
+If Rst.NoMatch Then                                                     ' If no one is found error (shouldn't have ever logged in thou)
+    Call TellAustin("No such user in database. Can't update user's hours)")
+    Exit Sub
+End If
+
+With Rst                            'update user info and show input
+    If vol Then                     ' figuring out previous hours worked/volunteered
+        If IsNull(!Volhrs) Then
+            PrevHrs = 0
+        Else
+            PrevHrs = !Volhrs
+        End If
+    Else
+        If IsNull(!Benchhrs) Then
+            PrevHrs = 0
+        Else
+            PrevHrs = !Benchhrs
+        End If
+    End If
+    
+    TTL = PrevHrs + totalhours + 0          ' Adding today's hours
+    Announce = PrevHrs & " + " & totalhours & " = " & TTL & " total hours"
+    .Edit
+    
+    If vol Then
+        !Volhrs.Value = TTL
+        Announce = Announce & " volunteering."
+    Else
+        !Benchhrs.Value = TTL
+        Announce = Announce & " at shop."
+    End If
+    
+   If msg <> 5 Then MsgBox (Announce)
+    .Update
+End With
+refreshUserInfo
+Me.Refresh
+
+'clear variables
+Set dBs = Nothing
+Set Rst = Nothing
+End Sub
+
+'Bench Log On's'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Private Sub usr1_AfterUpdate()
+   Call benchlogin(1)
+End Sub
+Private Sub usr2_AfterUpdate()
+  Call benchlogin(2)
+End Sub
+Private Sub usr3_AfterUpdate()
+  Call benchlogin(3)
+End Sub
+Private Sub usr4_AfterUpdate()
+   Call benchlogin(4)
+End Sub
+Private Sub usr5_AfterUpdate()
+   Call benchlogin(5)
+End Sub
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'Log User into the bench
+Sub benchlogin(num As Integer)          ' Putting user on  the bench
+Dim dBs As DAO.Database
+Dim Rst As DAO.Recordset
+Dim strCriteria As String
+
+If IsNull(Me.Controls("usr" & num).Value) Or Me.Controls("usr" & num).Value = "" Then                ' ensure user selected to prevent error
+    MsgBox ("Please select User and try again.")
+    Exit Sub
+End If
+strCriteria = " [ShopUseID] = " & Me.Controls("usr" & num).Column(1)              'Define Object to find
+Set dBs = CurrentDb
+Set Rst = dBs.OpenRecordset("UserLog", dbOpenDynaset)
+    Rst.FindLast strCriteria                                    'Find first occurance of Object
+If Rst.NoMatch Then
+   Call TellAustin("Log in Shop ID #" & Me.Controls("usr" & num).Column(1) & " did not return any records.")                                 'If no Object is found error
+Else
+    With Rst                                                    'edit user log to show user on bench
+        .Edit
+        !Bench = num
+        !onbench = True
+        .Update
+    End With
+    
+'Austin: Remove this as it is nolonger needed with the openformdata sub
+        'strCriteria = Me.Controls("usr" & num).Column(1)
+        ' Change row source of list box to save value
+        'Me.Controls("usr" & num).RowSource = "SELECT UserLog.NickName, UserLog.ShopUseID," & _
+        '                                " UserLog.SDate, UserLog.TimeOut FROM UserLog WHERE" & _
+       '                                 "(UserLog.ShopUseId) = " & strCriteria & ";"
+    
+    Me.Controls("usr" & num).Locked = True                       ' keeping anyone from making changes to benches unless logged out
+    Me.User.SetFocus
+    Me.Controls("usr" & num).Enabled = False
+    
+End If
+Call requeryUsers
+End Sub
+'Bench Log Off's'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Private Sub off1_Click()
+   Call offf(1, "")
+End Sub
+Private Sub off2_Click()
+   Call offf(2, "")
+End Sub
+Private Sub off3_Click()
+   Call offf(3, "")
+End Sub
+Private Sub off4_Click()
+   Call offf(4, "")
+End Sub
+Private Sub off5_Click()
+   Call offf(5, "")
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Sub offf(num As Integer, nicknm As String)
+Dim dBs As DAO.Database
+Dim Rst As DAO.Recordset, Rst2 As DAO.Recordset
+Dim strCriteria As String, findUse As String, onStand As String, i As Integer
+
+'add for user log off
+If nicknm = "" Then
+    onStand = Me.Controls("usr" & num).Value & ""     ' get nickname from stand
+    If onStand = "" Then
+        Call emptyStand(num)
+        Exit Sub
+    Else
+        If Not pswdIn Then
+            MsgBox "Password incorrect. You need a shop manager to sign you out."
+            Exit Sub
+        End If
+    End If
+Else
+    onStand = nicknm
+' find stand number
+    For i = 1 To 5
+    If onStand = Me.Controls("usr" & i).Value & "" Then num = i
+    Next i
+End If
+
+' Log user out of bench '''''''''''''''''''''''''''''''''''''''''''''''''
+    Set dBs = CurrentDb
+    ' Lookup user # by the name in the current "Nickname" (because once it's been selected and the form refreshed, the fact it was selected is gone)
+    Set Rst = dBs.OpenRecordset("UserLog", dbOpenDynaset)
+    findUse = "[NickName] = """ & onStand & """"
+    If Rst.RecordCount = 0 Then                                                     'Austin: Ultra redundant.  do we really need this??
+        TellAustin ("The user log is deleted, empty, or can't be accessed.")
+        Call emptyStand(num)
+        Exit Sub
+    End If
+    Rst.FindLast findUse                                           ' start at end and work to earlier to find last use of stand by user
+    If Rst.NoMatch Then
+        TellAustin ("The database shows that " & onStand & " has ever used our stands.")
+        Call emptyStand(num)
+        Exit Sub
+    Else
+    If Rst!SDate <> Date Then
+       Call TellAustin("The database shows that " & onStand & " hasn't been here today.")
+        Exit Sub
+    End If
+    If Not (Rst!onbench) Then
+       Call TellAustin("The database doesn't show that " & onStand & " is currently using a stand")
+        Call emptyStand(num)
+        Exit Sub
+    End If
+ 'Edit User log to show user is no longer on a bench
+        With Rst
+            .Edit
+            !onbench = False
+            .Update
+        strCriteria = !shopuseid
+        End With
+        
+ 'clear variables
+        Set Rst = Nothing
+        Set dBs = Nothing
+        Call emptyStand(num)
+        Call requeryUsers
+ 
+ ' Give option to sign user out immediately after signing off stand
+       If nicknm = "" Then Call GetOff("[ShopUseID] = " & strCriteria, 0)
+    
+' rest to blank
+    End If
+
+End Sub
+
+Private Sub emptyStand(standNo As Integer)
+    Me.User.SetFocus
+    With Me.Controls("usr" & standNo)
+        .Value = ""
+        .Locked = False
+        .Enabled = True
+    End With
+End Sub
+
+'change volunteering status'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Private Sub volch_Click()
+Dim dBs As DAO.Database
+Dim Rst As DAO.Recordset
+Dim strCriteria As String
+
+If IsNull(Me.logedusers) Then                                                       'check that a user is selected to prevent error
+    MsgBox ("Select a user to change his/her volunteering status and try again.")
+    Exit Sub
+End If
+
+strCriteria = "[ShopUseID] = " & Me.logedusers.Column(4)                            'Define Object to find
+Set dBs = CurrentDb
+Set Rst = dBs.OpenRecordset("UserLog", dbOpenDynaset)
+    Rst.FindLast strCriteria                                                         'Find first occurance of Object
+
+If Rst.NoMatch Then                                                                  'If no Object is found error
+     Call TellAustin("Shop Use ID #" & Me.logedusers.Column(4) & " was deleted or not found")
+      Exit Sub
+Else
+    
+    If MsgBox("Change volunteering status from """ & Rst!Volunteering & """?", vbYesNo) = vbYes Then
+        Rst.Edit                                                                     'edit user log to change volunteering status
+        If Rst!Volunteering Then
+            Rst!Volunteering = False
+        Else
+            Rst!Volunteering = True
+        End If
+        Rst.Update
+    End If
+End If
+
+'Refresh sheet and clear variables
+    Me.Refresh
+    Set dBs = Nothing
+    Set Rst = Nothing
+End Sub
+
+===============
+Form_ActivityTimer
+===============
+Option Compare Database
+Option Explicit
+
+Private Sub Form_Timer()
+
+' IDLEMINUTES determines how much idle time to wait for before
+         ' running the IdleTimeDetected subroutine.
+         
+         Const IDLEMINUTES = 0.1
+         Static PrevControlName As String
+         Static PrevFormName As String
+         Static ExpiredTime
+
+         Dim ActiveFormName As String
+         Dim ActiveControlName As String
+         Dim ExpiredMinutes
+
+         On Error Resume Next
+
+         ' Get the active form and control name.
+
+         ActiveFormName = Screen.ActiveForm.Name
+         If Err Then
+            ActiveFormName = "No Active Form"
+            Err = 0
+         End If
+
+         ActiveControlName = Screen.ActiveControl.Name
+            If Err Then
+            ActiveControlName = "No Active Control"
+            Err = 0
+            End If
+
+         ' Record the current active names and reset ExpiredTime if:
+         '    1. They have not been recorded yet (code is running
+         '       for the first time).
+         '    2. The previous names are different than the current ones
+         '       (the user has done something different during the timer
+         '        interval).
+         If (PrevControlName = "") Or (PrevFormName = "") _
+           Or (ActiveFormName <> PrevFormName) _
+           Or (ActiveControlName <> PrevControlName) Then
+            PrevControlName = ActiveControlName
+            PrevFormName = ActiveFormName
+            ExpiredTime = 0
+         Else
+            ' ...otherwise the user was idle during the time interval, so
+            ' increment the total expired time.
+            ExpiredTime = ExpiredTime + Me.TimerInterval
+         End If
+
+         ' Does the total expired time exceed the IDLEMINUTES?
+         ExpiredMinutes = (ExpiredTime / 1000) / 60
+         If ExpiredMinutes >= IDLEMINUTES Then
+            ' ...if so, then reset the expired time to zero...
+            ExpiredTime = 0
+            ' ...and call the IdleTimeDetected subroutine.
+            IdleTimeDetected ExpiredMinutes
+         End If
+End Sub
+
+Sub IdleTimeDetected(ExpiredMinutes)
+         
+         Dim fName As String
+         formName = Screen.ActiveForm.Name
+         If Not (MsgBox("No user activity detected in the last " & ExpiredMinutes * 60 & " seconds. Continue?", vbYesNo) = vbYes) Then
+                CloseAllForms
+            Else
+                DoCmd.Close ("ActivityTimer")
+                DoCmd.OpenForm ("ActivityTimer")                                        ' start timer of death
+                DoCmd.OpenForm (fName)
+            End If
+End Sub
+===============
+Form_BikeLogEdit
+===============
+Option Compare Database
+Option Explicit
+
+Private Sub Form_Load()
+Dim strCriteria
+Dim InputBike
+Dim bikeNo As Integer
+Dim dBs As DAO.Database
+Dim Rst As DAO.Recordset
+
+bikeNo = 0
+If Not (IsNull(Me.OpenArgs)) Then bikeNo = Me.OpenArgs
+If bikeNo = 0 Then                               'make sure something was selected
+    InputBike = InputBox("Type Bicycle ID to edit. Type 0 (zero) to exit.", "Bike ID", 0)
+    If Not (IsNull(InputBike)) And Not (IsEmpty(InputBike)) And Not (InputBike = "") Then
+        bikeNo = CInt(InputBike)
+    End If
+End If
+
+If bikeNo = 0 Then
+    Call CloseAllForms
+    Exit Sub
+End If
+
+Set dBs = CurrentDb
+
+'set form to just selected bike
+Me.CBCID = bikeNo
+strCriteria = "[CBCID] = " & bikeNo
+Set Rst = dBs.OpenRecordset("Bikes", dbOpenDynaset)
+    Rst.FindFirst strCriteria                                                                     'Find first occurrence of User
+If Rst.NoMatch Then
+       If MsgBox("CBCID" & bikeNo & " does not exist in database. Do you want to edit a different bike", vbYesNo) = vbYes Then
+        Call NewEdit
+    Else
+        Call CloseAllForms
+    End If                  'If no User is found with that name, error
+    Exit Sub
+Else
+' need to pull data into form
+With Rst
+    Me.Make = !Make
+    Me.Model = !Model
+    Me.SerialNumber = !SerialNo
+    Me.Color = !Color
+    Me.Status = !Status
+    Me.Value = !Value
+    Me.Type = !Type
+    Me.BG = !boygirl
+    Me.Size = !Size
+    Me.Speeds = !Speeds
+    Me.donor = !donor
+    Me.phone = !DonorPh
+    Me.email = !DonorEmail
+    Me.Date = !DonationDate
+    Me.ShopMgr1 = !ShopMgr
+    Me.Checked = !PoPo
+    Me.Description = !Description
+End With
+Set dBs = Nothing
+Set Rst = Nothing
+End If
+
+'In the future add a history table and add info to history
+    ' Bobby: Good idea, perhaps. Might be a pain. What types of things? Price change history? Or every possible update to a bicycle?
+    'Austin: Good Question   Price would probably be enough right??
+End Sub
+Private Sub NewRecord_Click()
+    
+ ' Calling Variables
+    Dim dBs As DAO.Database
+    Dim Rst As DAO.Recordset
+    Dim strCriteria As String
+    Dim BikeStatus As String, BikeDesc As String
+    Dim a As Integer
+    Dim ans
+    
+    a = 0
+    Set dBs = CurrentDb
+
+ 'Make sure needed data is filled in
+     With Me
+        If .Make.Value = Empty Or .Make.Value = "" Then
+            MsgBox ("Please fill in Make and try again.")
+            a = 1
+        End If
+        If .Model.Value = Empty Then
+            MsgBox ("Please fill in Model and try again.")
+            a = 1
+        End If
+        If .SerialNumber.Value = Empty Then
+            MsgBox ("Please fill in SerialNumber and try again." & Chr(10) & "Add one to the bike if none")
+            a = 1
+        End If
+        If .Color.Value = Empty Then
+            MsgBox ("Please fill in Color and try again.")
+            a = 1
+        End If
+        If .Status.Value = Empty Then
+            MsgBox ("Please fill in Status and try again.")
+            a = 1
+        End If
+        If .Value.Value = Empty Then
+        ans = MsgBox("Value is left blank. Do you want to enter a value at this time?", vbYesNo)
+            If ans = vbYes Then
+                a = 1
+            Else
+                '.Value.Value = 999
+            End If
+        End If
+        If .Type.Value = Empty Then
+            MsgBox ("Please fill in Type and try again.")
+            a = 1
+        End If
+        If .BG.Value = Empty Then
+            If MsgBox("Will you select if its a boy's or girl's bike (step through frame)?", vbYesNo) = vbYes Then a = 1
+        End If
+        If .Size.Value = Empty Then
+            If MsgBox("WIll you measure the size of the frame (bottom bracket to seat post)?)", vbYes) = vbYes Then a = 1
+        End If
+        If .ShopMgr1.Value = Empty Then
+            MsgBox ("Please fill in Shop Manager and try again.")
+            a = 1
+        End If
+        
+        If .Date.Value = Empty Then
+            MsgBox ("Please fill in Date and try again.")
+            a = 1
+        End If
+        If .donor.Value = Empty Then
+            If MsgBox("Please get Donor's name." & Chr(10) & "Will you?", vbYesNo) = vbYes Then
+                a = 1
+            End If
+        End If
+        If .phone.Value = Empty Then
+            If MsgBox("Please get donor's phone number." & Chr(10) & "Will you?", vbYesNo) = vbYes Then
+                a = 1
+            End If
+        End If
+        If .email.Value = Empty Then
+            If MsgBox("Please get donor's email address." & Chr(10) & "Will you?", vbYesNo) = vbYes Then
+                a = 1
+            End If
+        End If
+'Check that Bike tag was made...?
+            ans = MsgBox("Did you Tag the Bike? return to get details?", vbYesNo)
+            If ans = vbNo Then
+                a = 1
+            End If
+    End With
+    If a = 1 Then Exit Sub
+strCriteria = "[CBCID] = " & Me.CBCID
+Set Rst = dBs.OpenRecordset("Bikes", dbOpenDynaset)
+    Rst.FindFirst strCriteria                                                                     'Find first occurrence of User
+If Rst.NoMatch Then
+       If MsgBox("CBCID " & Me.CBCID & " does not exist in database. Do you want to edit a different bike", vbYesNo) = vbYes Then
+        Call NewEdit
+    Else
+        Call CloseAllForms
+    End If                  'If no User is found with that name, error
+    Exit Sub
+Else
+'Pulling Data from Form and putting in Bikes
+    With Rst
+        .Edit
+        !Make = Me.Make
+        !Model = Me.Model
+        !SerialNo = Me.SerialNumber
+        !Color = Me.Color
+        !Status = Me.Status
+        !Value = Me.Value
+        !Type = Me.Type
+        !boygirl = Me.BG
+        !Size = Me.Size
+        !Speeds = Me.Speeds
+        !donor = Me.donor
+        !DonorPh = Me.phone
+        !DonorEmail = Me.email
+        !DonationDate = Me.Date
+        !ShopMgr = Me.ShopMgr1
+        !PoPo = Me.Checked
+        !Description = Me.Description
+        Me.CBCID = !CBCID
+        .Update
+        .Close
+    End With
+End If
+'close stuff
+    Set dBs = Nothing
+    Set Rst = Nothing
+    
+    
+    
+    
+    
+    Dim pw As Boolean
+    If MsgBox("Edit another bike?", vbYesNo) = vbYes Then
+        Call NewEdit
+    Else
+       Call CloseAllForms
+    End If
+End Sub
+ 
+ Private Sub NewEdit()
+    If pswdIn Then
+       Call CloseAllForms("BikeLogEdit")
+    Else
+        MsgBox "Access Denied."
+        Call CloseAllForms
+    End If
+ End Sub
+ 
+ 
+Private Sub CloseBikes_Click()
+    If MsgBox("Exit without saving edits?", vbYesNo) = vbYes Then CloseAllForms
+End Sub
+
+Private Sub Return2_Click()
+   Call CloseAllForms
+End Sub
+
+
+===============
+Form_InputBox
+===============
+Option Compare Database
+Option Explicit
+
+Private Sub Form_Load()
+'copied from some where leaving as is for now will edit to match my style later
+
+' The PasswordInputBox function accepts the following parameters:   Prompt;   Title;   Default
+' The values for those parameters are passed as a tilde (~) separated
+' list of values in the format ArgumentName=ArgumentValue.
+
+Dim lngLoop As Long
+Dim strTitle As String, strDefault As String, strProtected As String
+Dim varOpenArgs As Variant, varOpenArg As Variant
+
+' Check to ensure that an OpenArgs string was passed.
+' If not, raise an error and close the form.
+' Otherwise, parse the OpenArgs string into its component parts.
+
+    If Len(Me.OpenArgs & vbNullString) = 0 Then
+        TellAustin ("Opening arguments were not passed to the password function.")
+    Else
+        varOpenArgs = Split(Me.OpenArgs, "~")    ' Splits Opening Arguments String into VarOpenArgs Array
+        For lngLoop = LBound(varOpenArgs) To UBound(varOpenArgs) ' set to loop for as many pieces as there are arrays
+            varOpenArg = Split(varOpenArgs(lngLoop), "=") ' split each array into 2 subarrays by = sign
+            If UBound(varOpenArg) = 1 Then              ' as long as it successfully split in two parsts (0, 1)...
+                Select Case varOpenArg(0)               ' then check the first part against the below cases
+                    Case "Prompt"
+                        Me!lblPrompt.Caption = varOpenArg(1)
+                    Case "Title"
+                        strTitle = varOpenArg(1)
+                    Case "Default"
+                        strDefault = varOpenArg(1)
+                    Case "Protected"
+                        strProtected = varOpenArg(1)
+                    Case Else ' If something other than expected variable names is passed, then exit
+'                        Err.Raise vbObjectError + 2, Me.Name, "Invalid argument " & _
+'                            varOpenArg(0) & " passed to " & Me.Form
+                        CloseAllForms
+                        Exit For
+                End Select
+            End If
+        Next lngLoop
+    End If
+' If no title is passed, set it to the application name.
+    If Len(strTitle) = 0 Then
+        strTitle = Application.Name
+    End If
+' Initialize the form.
+    Me.Caption = strTitle
+    Me!txtInput = strDefault
+    Me!txtInput.SetFocus
+End Sub
+Private Sub cmdCancel_Click()
+    DoCmd.Close                 ' Close form on cancel
+End Sub
+Private Sub cmdOK_Click()
+  Me.Visible = False                        ' allows other sub to check if password is correct and that sub will close the form
+End Sub
+===============
+Form_PasswordChange
+===============
+Option Compare Database
+Option Explicit
+
+Private Sub Calculate_Click()
+
+    Dim dB As DAO.Database
+    Dim Rst As DAO.Recordset
+
+    If Val(Me.oldp) <> Val(DLookup("Password", "ShopUse", "[Nickname] = 'Manager'")) Then                   ' Checks to see if old password matches
+        MsgBox "Incorrect password!"
+        '     CloseAllForms                                                                                                                                       ' If not, boots you out entirely
+        Exit Sub
+    End If
+    
+    If Me.newp <> Me.rep Then                                                                                                                   ' If it does, then checks to see if new passwords match each other
+        MsgBox "New passwords not the same. Password not changed."
+        Me.newp = "": Me.rep = "": Me.oldp = ""                                                                                          ' If not, clears out fields and lets you try again
+        Me.oldp.SetFocus
+        Exit Sub
+    End If
+    
+    If Me.newp > 999 And Me.newp < 10000 Then                                                                                   ' If passwords match is new password 4 digit number
+        Set dB = CurrentDb
+        Set Rst = dB.OpenRecordset("Select * From ShopUse Where ShopUse.Nickname = 'Manager'", dbOpenDynaset, dbSeeChanges) ' If so, open up password table
+        With Rst
+            .FindFirst "[Nickname] = 'Manager'"                                                                                            ' Pull up password record
+            .Edit
+            !Password = Me.newp                                                                                                                     ' Update password
+            .Update
+            .Close                                                                                                                                                  ' and we're done
+        End With
+        Set Rst = Nothing
+        Set dB = Nothing
+        MsgBox "Password updated. Please inform other managers through our listserve.", vbInformation
+        CloseAllForms
+    Else                                                                                                                                                              ' If it's not a 4 digit number
+        MsgBox "Password must be 4 digit number."
+        Me.newp = "": Me.rep = "": Me.oldp = ""                                                                                          ' .... clears out fields and lets you try again
+        Me.oldp.SetFocus
+    End If
+End Sub
+
+Private Sub Returnlog_Click()
+    If MsgBox("Continue to main screen without changing password?", vbYesNo) = vbYes Then CloseAllForms
+End Sub
+===============
+Form_PeopleDBEdit
+===============
+Option Compare Database
+Option Explicit
+
+Private Sub Form_Load()
+
+Dim strCriteria As String, UsrName As String
+Dim dBs As DAO.Database
+Dim Rst As DAO.Recordset
+
+Set dBs = CurrentDb
+
+' Pick UsrName of person being edited
+If Len(Me.OpenArgs & vbNullString) = 0 Then     'check that arguments were passed
+    UsrName = InputBox("Type the user name that you would like to edit:", "Enter User Name")
+'   call TellAustin ("No variables passed to tell what form to edit. Error")
+Else
+    UsrName = Me.OpenArgs
+End If
+Me.NickName = UsrName
+strCriteria = "SELECT People.* FROM People WHERE People.[NickName] = '" & UsrName & "'"
+Set Rst = dBs.OpenRecordset(strCriteria)
+If Rst.RecordCount = 0 Then
+    If MsgBox("User " & UsrName & " does not exist in database. Do you want to edit a different user", vbYesNo) = vbYes Then
+        Call CloseAllForms("PeopleDBEdit")
+    Else
+        Call CloseAllForms
+    End If
+    Exit Sub
+End If
+' need to pull data into form
+With Rst
+    Me.FirstName = !First
+    Me.LastName = !Last
+    Me.EmailAddress = !email & ""
+    Me.phone = !phone & ""
+    Me.Member = !EmailList
+    Me.ShopManager = !Manager
+    Me.Waiver = !Waiver
+    Me.Street = !Street & ""
+'    Me.HouseNo = !Housenm & ""
+'    Me.Apt = !AptNm & ""
+    Me.City = !City & ""
+    'Me.State = !State & ""
+    'Me.Zip = !Zip & ""
+    Me.UserID = !UserID
+    Me.Volhrs = !Volhrs
+    Me.ShpHrs = !Benchhrs
+    Me.EmergencyContact = !EContact & ""
+    Me.EmergencyPhone = !EContactPhone
+    If Not (IsNull(!Gender)) Then Me.Gender = !Gender
+    Me.Birthday = !Birthday
+End With
+Set dBs = Nothing
+Set Rst = Nothing
+End Sub
+Private Sub AddUser_Click()
+Dim Rst As DAO.Recordset
+Dim dBs As DAO.Database
+Dim strCriteria As String
+
+Set dBs = CurrentDb
+strCriteria = "SELECT People.* FROM People WHERE People.[NickName] = '" & Me.NickName & "'"
+Set Rst = dBs.OpenRecordset(strCriteria)
+If Rst.RecordCount = 0 Then
+    TellAustin ("User " & Me.NickName & " does not exist in database.")
+    Call CloseAllForms
+    Exit Sub
+End If
+With Rst
+    .MoveFirst
+    .Edit
+    If Not (IsNull(Me.LastName)) Then
+        !Last = Me.LastName
+    Else
+        MsgBox "Cannot delete last name."
+    End If
+    !email = Me.EmailAddress
+    !phone = Me.phone
+    !EmailList = Me.Member
+    !Manager = Me.ShopManager
+    !Waiver = Me.Waiver
+    !Street = Me.Street
+    ' !Housenm = Me.HouseNo    ' Depreciated
+    ' !AptNm = Me.Apt          ' Depreciated
+    !City = Me.City
+    '!State = Me.State          'Combined into City
+    '!Zip = Me.Zip              'Combined into City
+    !Volhrs = Me.Volhrs
+    !Benchhrs = Me.ShpHrs
+    !EContact = Me.EmergencyContact & ""
+    !EContactPhone = Me.EmergencyPhone & ""
+    !Gender = Me.Gender
+    !Birthday = Me.Birthday
+    .Update
+    .Close
+End With
+
+Set Rst = Nothing
+Set dBs = Nothing
+
+If MsgBox("Success. Edit another user?", vbYesNo) = vbYes Then
+    Call CloseAllForms("PeopleDBEdit")
+Else
+    Call CloseAllForms
+End If
+End Sub
+
+Private Sub Returntolog_Click()
+    Call ReturnOK
+End Sub
+
+Private Sub ShopManager_AfterUpdate()
+    MsgBox "Manager approval required to add/remove shop manager."
+    If pswdIn = False Then
+        MsgBox "Access denied."
+        Me.ShopManager = DLookup("[Manager]", "People", "[NickName] = '" & Me.NickName & "'")
+    End If
+End Sub
+
+Private Sub ShpHrs_AfterUpdate()
+    MsgBox "Manager approval required to update shop hours."
+    If pswdIn = False Then
+        MsgBox "Access denied."
+        Me.ShpHrs = DLookup("[Benchhrs]", "People", "[NickName] = '" & Me.NickName & "'")
+    End If
+End Sub
+
+Private Sub VolHrs_AfterUpdate()
+        MsgBox "Manager approval required to update volunteer hours."
+        If pswdIn = False Then
+            MsgBox "Acccess denied."
+            Me.Volhrs = DLookup("[Volhrs]", "People", "[Nickname] = '" & Me.NickName & "'")
+        End If
+End Sub
+Private Sub MemberQ_Click()
+    MsgBox "Membership is NOT (currently) required to use our tools, space, advice, or to purchase bikes or parts."
+    MsgBox "Membership IS REQUIRED to vote at our meetings, serve on our board, and receive volunteer incentives."
+    MsgBox "Membership helps keep our shop operating and helps demonstrate public support for our nonprofit and its work."
+    MsgBox "Membership is ordinarily $15. If this amount creates a hardship, you may request a waiver from our organization at a meeting."
+End Sub
+===============
+other macros
+===============
+Option Compare Database
+Option Explicit
+
+Function startup1()
+    Dim dB As DAO.Database
+    Dim Rst As DAO.Recordset
+    Dim dat As Date
+    Call Reconnect
+    'commented out  for error checking and edditing purposes
+    DoCmd.ShowToolbar "Ribbon", acToolbarNo 'hide ribbon
+    DoCmd.NavigateTo "acNavigationCategoryObjectType"
+    DoCmd.RunCommand acCmdWindowHide
+    DoCmd.Maximize
+    
+    Set dB = CurrentDb
+    Set Rst = dB.OpenRecordset("ShiftLog")
+    Rst.MoveLast
+    
+    'check if shop was already opened today
+    If Rst!keydate.Value = Date Then
+        CloseAllForms
+    Else
+        CloseAllForms ("OpenShop")
+    End If
+    'clear variables
+    Set Rst = Nothing
+    Set dB = Nothing
+End Function
+
+Sub Bringitallback()            ' For editing purposes to get to this (VBA) Alt +F11
+    DoCmd.ShowToolbar "Ribbon", acToolbarYes
+    DoCmd.SelectObject acTable, , True
+End Sub
+Function Reconnect()
+'**************************************************************
+'*     START YOUR APPLICATION (MACRO: AUTOEXEC) WITH THIS FUNCTION
+'*     AND THIS PROGRAM WILL CHANGE THE CONNECTIONS AUTOMATICALLY
+'*     WHEN THE 'DATA.MDB'  AND THE 'PRG.MDB'
+'*     ARE IN THE SAME DIRECTORY!!!
+'*                  PROGRAMMING BY PETER VUKOVIC, Germany
+'*                  100700.1262@compuserve.com
+'* ************************************************************
+Dim dB As Database, source As String, path As String
+Dim dbsource As String, i As Integer, j As Integer
+Dim loRef As Access.Reference
+            
+Set dB = DBEngine.Workspaces(0).Databases(0)
+'*************************************************************
+'*                     RECOGNIZE THE PATH                    *
+'*************************************************************
+
+For i = Len(dB.Name) To 1 Step -1
+    If Mid(dB.Name, i, 1) = Chr(92) Then
+        path = Mid(dB.Name, 1, i)
+        'MsgBox (path)
+        Exit For
+    End If
+Next
+'*************************************************************
+'*              CHANGE THE PATH   AND   CONNECT  AGAIN       *
+'*************************************************************
+
+For i = 0 To dB.TableDefs.Count - 1
+    If dB.TableDefs(i).Connect <> " " Then
+        source = Mid(dB.TableDefs(i).Connect, 11)
+        'Debug.Print source
+        For j = Len(source) To 1 Step -1    'start from back
+            If Mid(source, j, 1) = Chr(92) Then ' find \
+               dbsource = Mid(source, j + 1, Len(source))
+               source = Mid(source, 1, j)   'path of surce
+                   If source <> path Then   'check if are same
+                        dB.TableDefs(i).Connect = ";Database=" + path + dbsource
+                        dB.TableDefs(i).RefreshLink
+                        'Debug.Print ";Database=" + path + dbsource
+                    End If
+                Exit For
+            End If
+         Next
+    End If
+Next
+End Function
+
+Function CloseAllForms(Optional formName As String)                     ' closes all forms and opens mastershoplog unless another form is selected
+Dim obj As Object
+Dim strName As String
+For Each obj In Application.CurrentProject.AllForms
+    DoCmd.Close acForm, obj.Name, acSavePrompt
+Next obj
+If Len(formName) < 1 Then
+    DoCmd.OpenForm "*MasterShopLog"
+Else
+    DoCmd.OpenForm formName
+End If
+    DoCmd.Maximize
+End Function
+
+Public Sub TellAustin(Problem As String)           ' Rather than having errors, just have this come up
+    MsgBox Problem & Chr(10) & "This isn't supposed to happen." & Chr(10) & _
+    "Please let Austin know so it can get fixed. austinfoxmaterials@gmail.com", vbCritical
+End Sub
+Public Sub ReturnOK()
+    If MsgBox("Return to main menu without saving form data?", vbYesNo) = vbYes Then CloseAllForms
+End Sub
+
+===============
+pass
+===============
+Option Compare Database
+Option Explicit
+
+Sub psWd(frmnm As String)                                                                 ' Checks known password against user's guess and returns form if correct
+
+    Dim pwd As String, pwd1 As String
+    Dim strCriteria As String
+    
+    pwd = ""
+    pwd = PasswordInputBox("Password?", "Enter " & frmnm)                                  'Call inputbox to get user guess at password
+    
+    strCriteria = "[Nickname] =  'Manager'"                                                'Define search for password
+    
+    If IsNull(DLookup("Password", "ShopUse", strCriteria)) Then                            'DLookup (Column, Form, if Column = 'String')
+            TellAustin ("Someone got rid of our password file.")                           'No Match Error
+            Exit Sub
+    Else
+           pwd1 = DLookup("Password", "ShopUse", strCriteria)                              'Put real password into variable
+    End If
+    
+    If pwd = pwd1 Then                                                                     'If password right
+        Call CloseAllForms(frmnm)                                                          'open target form
+        'DoCmd.OpenForm ("ActivityTimer")      does not work right now.   needs fixed      ' start timer of death
+        DoCmd.OpenForm (frmnm)                                                             'go back to target form
+        DoCmd.Requery
+        DoCmd.Maximize
+    Else
+        MsgBox "Access denied.", vbCritical                                                 ' otherwise, denied
+        Call CloseAllForms                                                                  ' go back to home page
+    End If
+End Sub
+Function pswdIn() As Boolean
+
+    Dim pwd As String, pwd1 As String
+    Dim strCriteria As String
+    
+    pswdIn = False
+    pwd = PasswordInputBox("Password?", "Password required to proceed.")                            'Callup Password input box
+    
+    If IsNull(DLookup("Password", "ShopUse", strCriteria)) Then                                     'Look for password
+        TellAustin ("Someone got rid of our password file.")                                        'No Match Error
+        Exit Function
+    Else
+        pwd1 = DLookup("Password", "ShopUse", strCriteria)                                          'Put real password into variable
+    End If
+    If pwd1 = pwd Then pswdIn = True                                                                'Check real password against input box
+End Function
+
+Function PasswordInputBox(Prompt As String, Optional Title As String = vbNullString, _
+  Optional Default As String = vbNullString, Optional Protected As String = vbNullString) As String
+'Makes Password come up as **** so people can not see what you are typing
+
+Dim strOpenArgs As String
+
+'Set up Arguments to pass to the Password input box
+strOpenArgs = "Prompt=" & Prompt                                                    'Set Prompt
+  If Len(Title) > 0 Then                                                            'Set Title
+    strOpenArgs = strOpenArgs & "~Title=" & Title
+  End If
+  If Len(Default) > 0 Then                                                          'Set Default Value
+    strOpenArgs = strOpenArgs & "~Default=" & Default
+  Else
+    strOpenArgs = strOpenArgs & "~Default=" & " "
+  End If
+  If Len(Protected) > 0 Then                                                        'haven't made this work.   Set Input mask
+    strOpenArgs = strOpenArgs & "~Protected=" & Protected
+  End If
+
+'Open input box so nothing else can be eddited and with Arguments
+  DoCmd.OpenForm formName:="InputBox", View:=acNormal, WindowMode:=acDialog, OpenArgs:=strOpenArgs
+    
+'check if password was correct by seeing if form is still loaded but hidden (e.g. User clicked "OK")
+  If CurrentProject.AllForms("InputBox").IsLoaded Then                    ' If User Clicked "OK"
+    PasswordInputBox = Forms("InputBox")!txtInput & ""                   'Get password value
+    DoCmd.Close acForm, "InputBox"                                                       'Close the Input box
+  Else
+    PasswordInputBox = "Canceled"                                                        'User canceled so return wrong password, regardless of input box
+  End If
+End Function
+===============
+Form_Batchbike
+===============
+Option Compare Database
+Option Explicit
+
+Private Sub Calculate_Click()
+
+
+End Sub
+
+Private Sub UpdateBikes(BikeIDs, BikeStatus As String, ShopMgr, Donee, RecordDate)
+
+Dim UpdatedBike As Variant
+Dim SQLstmt As String
+Dim bikeCount As Integer, i As Integer
+
+ 
+ ' Validate Data *****
+    If IsNull(ShopMgr) Then
+        MsgBox ("Shop Manager Required")
+        Exit Sub
+    End If
+    
+    If IsNull(BikeIDs) Then
+        MsgBox ("Must list at least one bike to update")
+        Exit Sub
+    End If
+    
+    If Not (IsDate(RecordDate)) Then
+        MsgBox ("Date field must contain a date")
+        Exit Sub
+    End If
+        If MsgBox("This will mark the bicyles listed above as '" & BikeStatus & _
+    "', set their price to $0, and mark their disposal date as " & RecordDate & ". This cannot be undone. Continue?", vbYesNo) = vbNo Then Exit Sub
+ 
+
+    
+    ' Loop for each updated bike
+    UpdatedBike = Split(BikeIDs, ",")     ' Put each bike listed in variable
+    bikeCount = UBound(UpdatedBike) + 1     ' count them (starts at 0, so add 1)
+    
+    
+    ' Maybe later check if bikes are already sold, green tagged, or blue tagged, ... but not bothering yet...
+    
+    DoCmd.SetWarnings False
+    For i = 0 To bikeCount - 1                                             ' set up loop
+           SQLstmt = "UPDATE Bikes SET "                                   ' Start writing update string
+           SQLstmt = SQLstmt + "Status = '" & BikeStatus & "', "           'as necessary add piece for Status,
+           If Len(Donee) > 1 Then
+              SQLstmt = SQLstmt + "Bikes.Buyernm = '" & ShopMgr & " donated to " & Donee & "', "
+           Else
+              SQLstmt = SQLstmt + "Bikes.Buyernm = 'Recycled by " & ShopMgr & "', "
+           End If
+           SQLstmt = SQLstmt + "Bikes.Value = '0', "                                      'new value of recycled bike will be 0
+           SQLstmt = SQLstmt + "DisposalDate= #" & RecordDate & "#"                       'update date
+           SQLstmt = SQLstmt + " WHERE Bikes.[CBCID]  IN (" & UpdatedBike(i) & ");"       'update bike
+           
+           DoCmd.RunSQL SQLstmt                                                           'Change bikes statuses
+     Next i
+     
+     DoCmd.SetWarnings True
+     If MsgBox("Done. Return to menu?", vbYesNo) = vbYes Then
+        Call CloseAllForms
+        Exit Sub
+     End If
+     
+End Sub
+
+Private Sub Donate_Click()
+
+   UpdateBikes Me.Nums, "Sold", Me.ShopMgr1, Me.DoneeBox, Me.DateBox
+End Sub
+
+Private Sub Recycle_Click()
+
+
+   UpdateBikes Me.Nums, "Recycled", Me.ShopMgr1, "X", Me.DateBox
+End Sub
+
+Private Sub Returnlog_Click()
+   Call ReturnOK
+End Sub
+===============
+Form_BikeLog
+===============
+Option Compare Database
+Option Explicit
+
+Private Sub donor_AfterUpdate()
+    
+End Sub
+
+Private Sub NewRecord_Click()
+
+' Calling Variables
+    Dim dBs As DAO.Database
+    Dim Rst As DAO.Recordset
+    Dim strCriteria As String
+    Dim BikeStatus As String, BikeDesc As String
+    Dim a As Integer
+    
+    Set dBs = CurrentDb
+
+'Check that tag was printed...   Make auto print?
+    'If MsgBox("Don't forget to print the tag. Return to print?", vbYesNo) = vbYes Then Exit Sub
+    
+    If CheckBike Then Exit Sub        ' make sure data is complete
+
+'Pulling Data from Form and putting in Bikes
+    Set Rst = dBs.OpenRecordset("SELECT * FROM Bikes WHERE 1 = 0", dbOpenDynaset, dbSeeChanges)
+    With Rst
+        .AddNew
+        !Make = Me.Make
+        !Model = Me.Model
+        !SerialNo = Me.SerialNumber
+        !Color = Me.Color
+        !Status = Me.Status
+        !Value = Me.Value
+        !Type = Me.Type
+        !Size = Me.Size
+        !Speeds = Me.Speeds
+        !donor = Trim(Me.donor & " ")
+        !DonationDate = Me.Date
+        !ShopMgr = Me.ShopMgr1
+        !PoPo = Me.Checked
+        !Description = Me.Description & " "
+        Me.CBCID = !CBCID
+        .Update
+        .Close
+    End With
+
+'close stuff
+    Set dBs = Nothing
+    Set Rst = Nothing
+
+'close form or add another bike?
+    If MsgBox("Success. Bicycle # " & Me.CBCID & " recorded. Add another bike? 'No' returns to main screen.", vbYesNo) = vbYes Then
+        Call CloseAllForms("BikeLog")                                                                                                        'reset form bye closing and reopening
+    Else
+        Call CloseAllForms                                                                                                                            ' exit back to home
+    End If
+
+End Sub
+
+Private Sub CloseBikes_Click()
+    Call ReturnOK
+End Sub
+
+
+Private Sub Form_Activate()
+'Get next CBC ID Number and add it to sheet
+Dim dB As DAO.Database
+Dim Rst As DAO.Recordset
+    Set dB = CurrentDb
+    Set Rst = dB.OpenRecordset("Bikes", dbOpenDynaset)
+        Rst.MoveLast
+        Me.CBCID = Rst!CBCID + 1
+    Set dB = Nothing
+    Set Rst = Nothing
+End Sub
+
+
+Private Function CheckBike() As Boolean                          ' checks data filled into form. Returns "True" if form incomplete or user opts to go back.
+    
+    Dim a As Integer
+    Dim FatalErrorMsg As String, ErrorMsg As String
+    
+    CheckBike = False       ' default is that it doesn't fail the check
+    
+    FatalErrorMsg = ""
+    ErrorMsg = ""
+    
+    'Fatal Errors
+    
+    With Me
+        If .Make.Value = Empty Or .Make.Value = "" Then
+            FatalErrorMsg = FatalErrorMsg & "* Bicycle 'Make' must be filled in." & Chr(10)
+        End If
+        If .Color.Value = Empty Then
+            FatalErrorMsg = FatalErrorMsg & "* Bicycle 'Color' must be filled in." & Chr(10)
+        End If
+        If .Status.Value = Empty Then
+            FatalErrorMsg = FatalErrorMsg & "* Bicycle 'Status' (tag) must be filled in." & Chr(10)
+        End If
+        If .ShopMgr1.Value = Empty Then
+            FatalErrorMsg = FatalErrorMsg & "* Entering Shop manager must be filled in." & Chr(10)
+        End If
+        If FatalErrorMsg <> "" Then CheckBike = True                ' Uh oh, didn't pass
+        
+    'NonFatal Errors
+        
+        If .SerialNumber.Value = Empty Then
+             ErrorMsg = ErrorMsg & "* Serial Number should be filled in. Can't find one? Engrave one." & Chr(10)
+             .SerialNumber.Value = "NONE"
+        End If
+        If .Type.Value = Empty Then
+            FatalErrorMsg = FatalErrorMsg & "* Bicycle 'Type' not recorded" & Chr(10)
+        End If
+        If .Size.Value = Empty Then
+            ErrorMsg = ErrorMsg & "* 'Frame Size' not recored. Measure frame from bottom bracket to seat post." & Chr(10)
+            .Size.Value = 0
+        End If
+        If .Value.Value = Empty Then
+            ErrorMsg = ErrorMsg & "* 'Value' not recorded. Setting at $0 unless updated." & Chr(10)
+            .Value.Value = 0
+        End If
+        If .Model.Value = Empty Or .Model.Value = "" Then
+            ErrorMsg = ErrorMsg & "* Bicycle 'Model' is left blank." & Chr(10)
+            .Model.Value = "Unknown"
+        End If
+        If .donor.Value = Empty Then
+             ErrorMsg = ErrorMsg & "* Donor not recorded." & Chr(10)
+             donor.Value = "Unknown"
+        End If
+    
+    ' NBD errors
+        If .Date.Value = Empty Then
+            .Date.Value = Date
+        End If
+
+End With
+    
+If ErrorMsg = "" Then ErrorMsg = "None."
+
+If FatalErrorMsg = "" Then
+        If MsgBox("No fatal errors were detected. The following problems were detected: " & Chr(10) & ErrorMsg & "Record Bicycle? ('OK' to record; 'Cancel' to fix problems.)", vbOKCancel) = vbCancel Then
+            CheckBike = True
+        End If
+    Else
+        MsgBox ("BIKE NOT RECORDED" & Chr(10) & "The following fatal errors were detected:" & Chr(10) & FatalErrorMsg & Chr(10) & "The following additional problems were detected: " & Chr(10) & ErrorMsg), vbOKOnly
+End If
+
+End Function
+===============
+Form_BikeSearchUser
+===============
+Option Compare Database
+Option Explicit
+
+Private Sub Calculate_Click()
+    Me.BikeBox.BackColor = RGB(255, 255, 255)
+    Me.BikeBox.ColumnCount = 10
+    Me.BikeBox.ColumnWidths = "0.5 in;1.2 in;1.2 in;1.5 in;0.5 in;0.5 in;0.9 in;0.9 in;0.8 in"
+    Me.BikeBox.RowSource = "SELECT Bikes.CBCID AS ID, Bikes.Color, Bikes.Make, Bikes.Model, Bikes.boygirl AS 'B/G', Bikes.Speeds as Spd, Bikes.Status as Tag, Bikes.Type, Bikes.Value as Price" _
+        & " FROM Bikes" _
+        & " WHERE 1 = 1" & Var & " ORDER BY Bikes.CBCID DESC;"
+End Sub
+
+
+Private Function Var() As String                    ' Figuring out the WHERE SQL clauses to know what to keep & what to exclude
+Dim CBC As Integer, MM As String, CLR As String, MaxP As Single, MinP As Single, SN As String
+Dim mCheck(7) As Boolean
+Dim mStatus(7) As String
+Dim i As Integer
+
+' Associating tag checkboxes with SQL arguments and Database names
+mStatus(1) = "Sold"
+mStatus(2) = "Recycled"
+mStatus(3) = "Red"
+mStatus(4) = "Orange"
+mStatus(5) = "White"
+mStatus(6) = "Green"
+mStatus(7) = "Blue"
+
+Var = ""
+
+With Me
+    mCheck(1) = .Sold.Value & ""
+    mCheck(2) = .Recycled.Value & ""
+    mCheck(3) = .Junk.Value & ""
+    mCheck(4) = .Strip.Value & ""
+    mCheck(5) = .Repair.Value & ""
+    mCheck(6) = .ForSale.Value & ""
+    mCheck(7) = .Gem.Value & ""
+' Validate data to prevent errors
+    
+    If IsNull(.CBC1.Value) Or .CBC1.Value = "" Or .CBC1.Value < 0 Or CBC1.Value > 9999 Then                                     ' Is a bike entered?
+        CBC = -1
+    Else
+        CBC = .CBC1.Value
+    End If
+    
+    MM = .MM1 & ""              ' MM = make or model
+    CLR = .CLR1 & ""
+    
+    If IsNull(.MxP1.Value) Or .MxP1.Value = "" Then                                     ' Is there a maximum price?
+        MaxP = 9999
+    Else
+        MaxP = .MxP1.Value
+    End If
+    If IsNull(.MnP1.Value) Or .MnP1.Value = "" Then                                     ' is there  minimum price?
+        MinP = -2
+    Else
+        MinP = .MnP1.Value
+    End If
+    SN = .SN1 & ""
+End With
+   
+' ***** Set Query Statements
+
+If CBC > 0 And CBC < 9999 Then                 'If CBC number is filled in,
+    Var = " AND Bikes.[CBCID]=" & CBC         ' go find it, we don't care about rest of data
+Else                                                              ' otherwise
+
+    If MM <> "" Then                                              'checking make OR model for text
+        Var = Var + _
+         " AND (Bikes.[make] LIKE '*" & MM & "*'" _
+         & " OR Bikes.[model] LIKE '*" & MM & "*')"
+    End If
+    
+    If CLR <> "" Then                                                 'checking color
+        Var = Var + _
+         " AND Bikes.[color] LIKE '*" & CLR & "*'"
+    End If
+    
+    If MaxP < 9999 Then                                              'checking max price
+        Var = Var + _
+         " AND Bikes.[Value] <= " & MaxP
+    End If
+    
+    If MinP < MaxP Then                                                'checking min price
+        Var = Var + _
+         " AND Bikes.[Value] >= " & MinP
+    End If
+    
+    If SN <> "" Then                                                        'checking S/N
+        Var = Var + _
+         " AND Bikes.[SerialNo] LIKE '*" & SN & "*'"
+    End If
+    
+    For i = 1 To 7     'Selecting Statuses to be Excluded
+        If mCheck(i) = False Then
+            Var = Var + _
+             " AND Bikes.[status] <> '" & mStatus(i) & "'"
+        End If
+    Next i
+End If
+
+End Function
+
+Private Sub CBC1_AfterUpdate()
+    RunSearch
+End Sub
+
+Private Sub Donor_Click()
+    If Not (pswdIn) Then
+        MsgBox ("Access Denied."), vbCritical
+        Exit Sub
+    End If
+    Me.BikeBox.BackColor = RGB(212, 255, 255)
+    Me.BikeBox.ColumnCount = 10
+    Me.BikeBox.ColumnWidths = "0.5 in;1.2 in;1.2 in;1.5 in;0.5 in;0.5 in;0.9 in;0.9 in;0.8 in"
+    Me.BikeBox.RowSource = "SELECT Bikes.CBCID AS ID, Bikes.Make, Bikes.Status as Tag, Bikes.DonationDate as Arrived, Bikes.ShopMgr as 'Rcvd by', Bikes.Value as Price, Bikes.Donor as 'From', Bikes.DonorPh as Phone, Bikes.DonorEmail as Email" _
+        & " FROM Bikes" _
+        & " WHERE 1 = 1" & Var & ";"
+
+End Sub
+
+Private Sub Purchaser_Click()
+    If Not (pswdIn) Then
+        MsgBox ("Access Denied."), vbCritical
+        Exit Sub
+    End If
+    Me.BikeBox.BackColor = RGB(255, 255, 212)
+    Me.BikeBox.ColumnCount = 9
+    Me.BikeBox.ColumnWidths = "0.5 in;1.2 in;0.6 in;1 in;0.8 in;1 in;0.9 in;1.8 in"
+    Me.BikeBox.RowSource = "SELECT Bikes.CBCID AS ID, Bikes.Make, Bikes.Status as Tag, Bikes.DisposalDate AS Sold, Bikes.Value as Price, Bikes.Buyernm as Buyer, Bikes.Buyerph as Phone, Bikes.BuyerEmail as Email" _
+        & " FROM Bikes" _
+        & " WHERE 1 = 1" & Var & ";"
+    
+End Sub
+
+Private Sub Returnlog_Click()
+    Call ReturnOK
+End Sub
+
+Private Sub Edit1_Click()
+    Dim Bike As String
+    If IsNull(Bike) Then                                  'Check that bike is selected to prevent error
+        MsgBox ("Please select bike to edit and try again.")
+        Exit Sub
+    End If
+    Bike = Me.BikeBox & ""                                          'get value
+    If pswdIn Then
+       Call CloseAllForms
+        'open edit form and send bike its way
+        DoCmd.OpenForm formName:="BikeLogEdit", View:=acNormal, OpenArgs:=Bike
+    Else
+        MsgBox "Access Denied."
+    End If
+End Sub
+
+Private Sub RunSearch()               ' Searching for Bikes upon click of search button
+    Me.BikeBox.BackColor = RGB(255, 255, 255)
+    Me.BikeBox.ColumnCount = 10
+    Me.BikeBox.ColumnWidths = "0.5 in;1.2 in;1.2 in;1.5 in;0.5 in;0.5 in;0.9 in;0.9 in;0.8 in"
+    Me.BikeBox.RowSource = "SELECT Bikes.CBCID AS ID, Bikes.Color, Bikes.Make, Bikes.Model, Bikes.boygirl AS 'B/G', Bikes.Speeds as Spd, Bikes.Status as Tag, Bikes.Type, Bikes.Value as Price" _
+        & " FROM Bikes" _
+        & " WHERE 1 = 1" & Var & " ORDER BY Bikes.CBCID DESC;"
+End Sub
+===============
+Form_CloseShop
+===============
+Option Compare Database
+Option Explicit
+
+Private Sub Cash_Out_AfterUpdate()
+    Call calculateCash
+End Sub
+
+
+Private Sub Form_Activate()
+Dim dBs As DAO.Database
+Dim Rst As DAO.Recordset
+Dim ans
+
+Set dBs = CurrentDb
+Set Rst = dBs.OpenRecordset("SELECT * FROM ShiftLog ORDER BY ShiftLog.KeyDate", dbOpenDynaset, dbSeeChanges)
+
+    Me.TimeOut.Value = Now()
+    With Rst
+      .MoveLast
+      
+        While (!keydate - 1 > Date)                     ' find latest record (this might be redundant now, but not killing it yet)
+            .MovePrevious
+        Wend
+        
+        If Not (IsNull(!TimeOut)) Then
+            ans = MsgBox("Today's record is already closed. Edit?", vbYesNo)
+            If ans = vbNo Then Exit Sub
+        End If
+        'fill in info from opening
+        Me.TimeIn.Value = !TimeIn
+        Me.DateBox.Value = !keydate
+        Me.NickName.Value = !OpeningMgr
+        Me.Open_Memo.Value = !OpenMemo
+        Me.CashIn.Value = !CashIn
+        .Close
+    End With
+
+    Set Rst = Nothing
+    
+' find daily cash total
+Call calculateCash
+End Sub
+
+Private Sub SaleButton_Click()
+'add a sale
+    If pswdIn Then
+        CloseAllForms ("Register")
+    Else
+        CloseAllForms
+    End If
+End Sub
+Private Sub CloseDayButton_Click()
+Dim Rst As DAO.Recordset
+Dim Closing As String
+Dim dBs As DAO.Database
+
+Set dBs = CurrentDb
+Set Rst = dBs.OpenRecordset("SELECT * FROM ShiftLog ORDER BY ShiftLog.KeyDate", dbOpenDynaset, dbSeeChanges)
+
+Call calculateCash
+With Rst
+  .MoveLast
+    While (!keydate - 1 > Date)
+        .MovePrevious
+    Wend
+    .Edit
+    Closing = Trim(Me.CloseNotes.Value & "")
+
+'check that shop manager is entered
+    If IsNull(Me.ShopMgr.Value) Or Me.ShopMgr.Value = "" Then
+        MsgBox ("Enter closing shop manager")
+        Exit Sub
+    End If
+'check that there is no cash discrepancy
+    If Me.Discrepancy.Value <> 0 Then
+        If MsgBox("Cash is off. 'Cancel' to return to add new transaction or recount of $. 'OK' to save as is.", vbOKCancel) = vbCancel Then
+            Exit Sub
+        Else
+            Closing = Closing & " ATTN: REGISTER OUT OF BALANCE!"  'add to day notes
+        End If
+    End If
+
+'check not repeat log out
+    If Not (IsNull(!TimeOut)) Then
+        If MsgBox("You have already logged out for this day once. Repeat/update values?", vbYesNo) = vbNo Then Exit Sub
+    End If
+
+    If Closing = "" Or IsNull(Closing) Then Closing = "No notes."
+'finish logging out
+    If MsgBox("Warning, logging out. Okay to proceed.", vbOKCancel) = vbCancel Then Exit Sub
+    !TimeOut = Me.TimeOut.Value
+    !CashOut = Me.Cash_Out.Value
+    !CloseMemo = Closing
+    !ClosingMgr = Me.ShopMgr.Value & ""
+    .Update
+    .Close
+
+End With
+
+'clear variables
+Set Rst = Nothing
+Set dBs = Nothing
+
+'close DB
+    If MsgBox("Data Recorded. Okay to quit?", vbYesNo) = vbYes Then
+        DoCmd.Quit acQuitSaveAll
+    Else
+        CloseAllForms
+    End If
+
+End Sub
+
+Private Sub ReturnLogButton_Click()
+    Call ReturnOK
+End Sub
+
+Private Sub calculateCash()
+Dim dBs As DAO.Database
+Dim DayTTL As DAO.Recordset
+    
+    Set dBs = CurrentDb
+    Set DayTTL = dBs.OpenRecordset("SELECT Sum(Sales.Price) AS PriceTTL FROM Sales " & _
+        "WHERE (Sales.Payment = 'Cash' And Sales.SaleDate = #" & Date & "#);", dbOpenDynaset, dbSeeChanges)
+    If IsNull(DayTTL!PriceTTL) Then             ' if total is 0 set it to zero to prevent error
+        Me.DayTotal.Value = 0
+    Else
+        Me.DayTotal.Value = DayTTL!PriceTTL         'Put total on sheet
+    End If
+    
+    If IsNull(Me.Cash_Out.Value) Or IsEmpty(Me.Cash_Out.Value) Then Me.Cash_Out.Value = 0     ' Deleting inadvertant nulls
+
+'add all values to sheet
+
+    Me.Expected.Value = Me.DayTotal.Value + Me.CashIn.Value
+    'MsgBox ("Ex " & Me.Expected.Value & " DT " & Me.DayTotal.Value & " IN: " & Me.CashIn.Value & " OUT: " & Me.Cash_Out.Value)
+    Me.Discrepancy.Value = Me.Expected.Value - Me.Cash_Out.Value
+End Sub
+===============
+Form_DayUseSearch
+===============
+Option Compare Database
+Option Explicit
+
+Private Sub Calculate_Click()
+    Me.UseBox.RowSource = "SELECT * FROM UserLog WHERE 1 = 1" & Var & ";"
+ End Sub
+ 
+ Private Function Var() As String
+ 
+    Dim sSQL As String, SQLstmt As String
+    Dim Date1 As Date, Date2 As Date
+    Dim User As String
+    Dim Bench
+    
+    'check date
+    With Me
+        If IsDate(.DateSt.Value) Then
+            Date1 = .DateSt.Value
+        Else
+            Date1 = "1/1/2000"
+        End If
+        Date2 = .DateEnd.Value
+        User = .User & ""
+        Bench = .Bench & ""
+    End With
+    
+    ' ***** Set Query Statements
+        Var = " AND UserLog.[SDate] >= #" & Date1 & "# AND UserLog.[SDate] <= #" & Date2 & "#"
+        
+        If User <> "" Then
+            Var = Var + _
+             " AND (UserLog.[NickName] LIKE '*" & User & "*')"
+        End If
+        
+        If Bench > 0 And Bench < 7 Then
+            Var = Var + _
+             " AND UserLog.[Bench] = '" & Bench & "'"
+        End If
+    ' ***** End Query Statements
+End Function
+
+Private Sub Returnlog_Click()
+    CloseAllForms
+End Sub
+===============
+Form_OpenShop
+===============
+Option Compare Database
+Option Explicit
+
+
+
+Private Sub Form_Activate()     ' when the form opens
+
+    
+    DoCmd.Maximize
+    'set basic values
+    Me.TimeIn.Value = Now()
+    Me.Date.Value = Date
+    Me.CashIn.Value = 0
+    ''''''''''''''''''''''''''''
+    Call CheckLast
+End Sub
+
+
+Private Sub CheckLast() ' Putting in fields from most recent date
+
+Dim findLastCash As String
+
+'Make this a Dlookup?
+'Bobby: No, because asking for "latest date" doesn't work with that type of criteria string. Right? I think so?
+    
+    Dim Rst As DAO.Recordset
+    Dim dBs As DAO.Database
+    Set dBs = CurrentDb
+    
+    findLastCash = "SELECT ShiftLog.CashOut, ShiftLog.KeyDate FROM ShiftLog ORDER BY ShiftLog.KeyDate;"      'Define Object to find
+    Set Rst = dBs.OpenRecordset(findLastCash, dbOpenDynaset, dbSeeChanges)                                  'Define recordset of Object
+    Rst.MoveLast                                                                                            'move to last occurance
+    While (Rst!keydate > Me.Date.Value)                                                                ' If day is greator or equal to today move previous
+        Rst.MovePrevious
+    Wend
+    Me.Previous.Value = Rst!CashOut                                                                        'Input value
+    Me.LastNight.Value = Rst!keydate
+    Me.DifferenceBox.Value = Me.CashIn.Value - Me.Previous.Value
+    Me.CashIn.SetFocus
+End Sub
+
+
+Private Sub CashIn_AfterUpdate()
+    Me.DifferenceBox.Value = Me.CashIn.Value - Me.Previous.Value                                           'Update diffrence value
+End Sub
+
+
+Private Sub OpeningButton_Click()
+Dim dBs As DAO.Database
+Dim Rst As DAO.Recordset
+Set dBs = CurrentDb
+Dim dateEntry As String
+'Prevent errors by checking tthat values are filled in
+  With Me
+        If .ShopMgr.Value = Empty Then
+            MsgBox "Please Select Opening Manager"
+            Exit Sub
+        End If
+        If .CashIn.Value = 0 Then
+            If MsgBox("Really, no money?", vbYesNo) = vbNo Then Exit Sub
+        End If
+        If .DifferenceBox.Value <> 0 Then
+            If MsgBox("Today's register doesn't match last date. Cancel to fix or enter an explanation (if known). 'Ok' to proceed.", vbOKCancel) = vbCancel Then
+                Exit Sub
+            Else
+                Me.OpeningComments = Trim(Me.OpeningComments.Value & " NOTE: REGISTER NOT IN BALANCE")
+            End If
+        End If
+    End With
+    dateEntry = Me.Date
+    
+    If Not (IsNull(DLookup("KeyDate", "ShiftLog", "[KeyDate] = # " & dateEntry & "#"))) Then                ' Has the shop been opened?
+        If (IsNull(DLookup("TimeOut", "ShiftLog", "[KeyDate] = # " & dateEntry & "#"))) Then            ' Has the shop been closed?
+            MsgBox ("The shop is already open.")
+            Call CloseAllForms
+            Exit Sub
+        Else
+            If MsgBox("The shop has already been opened and closed on " & Date & " do you need to 'reopen'?", vbYesNo) = vbYes Then
+                dateEntry = Now()
+            Else
+                Exit Sub
+            End If
+        End If
+    End If
+    
+' Adding new Shift log Record
+Set Rst = dBs.OpenRecordset("SELECT * FROM ShiftLog WHERE 1 = 0", dbOpenDynaset, dbSeeChanges)              ' Opening up an empty recordset with format of ShiftLog to add values
+With Rst
+    .AddNew
+    !keydate = dateEntry
+    !TimeIn = Me.TimeIn
+    !OpeningMgr = Me.ShopMgr
+    !CashIn = Me.CashIn
+    !CashOut = 0
+    !OpenMemo = Me.OpeningComments
+    !CloseMemo = Null
+    .Update
+    .Close
+End With
+Set Rst = Nothing
+' Updating User log with shop manager volunteering
+Set Rst = dBs.OpenRecordset("SELECT * FROM UserLog WHERE 1 = 0;", dbOpenDynaset, dbSeeChanges)         ' Opening up an empty recordset for UserLog to add shop manager as volunteer
+With Rst
+        .AddNew
+        !SDate = Date
+        !TimeIn = Now()
+        !NickName = Me.ShopMgr
+        !Volunteering = True
+        .Update
+        .Close
+    End With
+    
+'Clear variables
+Set Rst = Nothing
+Set dBs = Nothing
+    
+    CloseAllForms
+
+End Sub
+
+Private Sub OpeningList_AfterUpdate()
+    Me.InfoDetails = DLookup("OpeningMgr", "ShiftLog", "[KeyDate]= #" & Me.OpeningList.Value & "#") & " said : " & _
+        DLookup("OpenMemo", "ShiftLog", "[KeyDate]= #" & Me.OpeningList.Value & "#")
+End Sub
+
+Private Sub ClosingList_AfterUpdate()
+    Me.InfoDetails = DLookup("ClosingMgr", "ShiftLog", "[KeyDate]= #" & Me.ClosingList.Value & "#") & " said : " & _
+        DLookup("CloseMemo", "ShiftLog", "[KeyDate]= #" & Me.ClosingList.Value & "#")
+End Sub
+===============
+Form_PeopleSearch
+===============
+Option Compare Database
+Option Explicit
+
+
+Private Sub Edit1_Click()
+Dim User As String
+
+If IsNull(Me.UserBox) Then                                          ' make sure a user is selected
+    MsgBox ("Please select User to edit and try again.")
+    Exit Sub
+End If
+User = Me.UserBox
+
+'open edit form sending over user name
+  DoCmd.OpenForm formName:="PeopleDBEdit", _
+    View:=acNormal, _
+    OpenArgs:=User
+End Sub
+
+Private Sub Calculate_Click()
+
+Dim SQLstmt As String
+Dim NNM As String, FNM As String, LNM As String, EM As String, PH As String
+Dim Var As String
+
+
+With Me
+    NNM = .Nnm1 & ""
+    FNM = .Fnm1 & ""
+    LNM = .Lnm1 & ""
+    EM = .Em1 & ""
+    PH = .Ph1 & ""
+End With
+   
+    
+' ***** Set Query Statements
+    If NNM <> "" Then ' checking user name
+        Var = Var + _
+        " AND People.[Nickname]LIKE '*" & NNM & "*'"
+    End If
+    If FNM <> "" Then 'checking first name
+        Var = Var + _
+         " AND People.[First] LIKE '*" & FNM & "*'"
+    End If
+    
+    If LNM <> "" Then 'checking Last name
+        Var = Var + _
+         " AND People.[Last] LIKE '*" & LNM & "*'"
+    End If
+    
+    If PH <> "" Then 'checking Phone number
+        Var = Var + _
+         " AND People.[Phone] LIKE '*" & PH & "*'"
+    End If
+    
+    If EM <> "" Then 'checking Email
+        Var = Var + _
+         " AND People.[Email] LIKE '*" & EM & "*'"
+    End If
+    
+' ***** End Query Statements
+SQLstmt = "SELECT People.*" _
+ & " FROM People" _
+ & " WHERE 1 = 1" & Var & ";"
+
+'MsgBox (SQLstmt + " is search query SQL statement. (Message for debugging purpose only)")
+'set and run queery
+Me.UserBox.RowSource = SQLstmt
+
+
+End Sub
+
+
+Private Sub Returnlog_Click()
+CloseAllForms
+End Sub
+===============
+Form_Register
+===============
+Option Compare Database
+Option Explicit
+
+Private Sub BikeDesc_AfterUpdate()
+    Me.BikeDesc = DataMassage(Me.BikeDesc & "")
+End Sub
+
+Private Sub EditBike_Click()
+    Dim Bike As Integer
+    If Me.IDDropdown <= 0 Or IsNull(Me.IDDropdown) Then
+        MsgBox "You need to select a bicycle to edit"
+    Else
+        Bike = Me.IDDropdown
+        If MsgBox("Edit information about bicycle #" & Bike & "? Warning: Form data will be lost.", vbYesNo) = vbYes Then
+            If pswdIn Then
+               Call CloseAllForms
+                'open edit form and send bike its way
+                ' DoCmd.OpenForm ("ActivityTimer")
+                DoCmd.OpenForm formName:="BikeLogEdit", View:=acNormal, OpenArgs:=Bike
+            Else
+                MsgBox "Access Denied."
+            End If
+        End If
+    End If
+End Sub
+
+Private Sub Form_Load()
+Dim dBs As DAO.Database
+Dim Rst As DAO.Recordset
+Dim ans
+
+Set dBs = CurrentDb
+Set Rst = dBs.OpenRecordset("SELECT * FROM ShiftLog ORDER BY ShiftLog.KeyDate", dbOpenDynaset, dbSeeChanges)
+
+With Rst
+    .MoveLast
+    Me.CashIn.Value = !CashIn
+    .Close
+End With
+
+    Set Rst = Nothing
+    Set dBs = Nothing
+
+    Call calculateCash ' find daily cash total
+
+End Sub
+
+Private Sub BikeAmount_AfterUpdate()
+    Me.BikeAmount.Value = Abs(Me.BikeAmount) ' no negative $ bike sales, sorry
+    BikeSale (Me.BikeCheck)  ' checks to see if bike checkmark is checked, updates accordingly
+    TotalPurchases
+End Sub
+
+Private Sub DonationAmount_AfterUpdate()
+    Me.DonationAmount.Value = Abs(Me.DonationAmount)
+    TotalPurchases
+End Sub
+
+Private Sub NewDesc_AfterUpdate()
+    Me.NewDesc = DataMassage(Me.NewDesc & "")
+End Sub
+
+Private Sub Notes1_AfterUpdate()
+    Me.Notes1 = DataMassage(Me.Notes1 & "")
+End Sub
+
+Private Sub ResetTimeStamp_Click()
+    Me.ShopMgr1 = Null
+    Me.Customer_Label.Caption = "Customer:"
+    Me.CustomerDD = Null
+    ResetForm
+    Me.SaleType = "Sale"
+    Me.PaymentType = "Cash"
+    Me.SaleDate1 = Date
+    Me.ShopMgr1.SetFocus
+End Sub
+
+Private Sub UsedAmount_AfterUpdate()
+    TotalPurchases
+End Sub
+
+Private Sub ResetForm()
+    Me.UsedDesc = Null
+    Me.UsedAmount = 0
+    IsSale (False)
+    IsSale (True)
+End Sub
+
+Private Sub BikeCheck_AfterUpdate()
+    BikeSale (Me.BikeCheck.Value)
+End Sub
+
+Private Sub MemberCheck_AfterUpdate()
+    ' If the membreship box is checked, then bill $15 for membership, otherwise $0
+    If Me.MemberCheck.Value Then
+        Me.MembershipAmount = 15
+    Else
+        Me.MembershipAmount = 0
+    End If
+    TotalPurchases ' either way, update the total
+End Sub
+
+Private Sub NewAmount_AfterUpdate()
+    TotalPurchases  ' update total
+End Sub
+
+Private Sub Returnto_Click()
+    If MsgBox("Return to menu without saving current transaction?", vbYesNo) = vbYes Then CloseAllForms
+End Sub
+
+Private Sub CustomerDD_AfterUpdate()            ' Populate customer data
+    Dim dBs As DAO.Database
+    Dim Rst As DAO.Recordset
+    Dim strCriteria As String
+    
+    ' get all customer info so Bike form can be filled out
+    strCriteria = "[Nickname] = '" & Me.CustomerDD.Value & "'"   'Define Object to find
+    
+    Set dBs = CurrentDb
+    Set Rst = dBs.OpenRecordset("People", dbOpenDynaset)
+    Rst.FindFirst strCriteria                                       'find first Object
+        If Rst.NoMatch Then                                         'No Match error
+            MsgBox "User not in Database?", vbInformation
+        Else                                                        'Add Data to sheet
+            Me.CustPh = Rst!phone & ""
+            Me.CustEm = Rst!email & ""
+            ' Me.House = Rst!Housenm & ""     ' Depreciated
+            ' Me.Apt = Rst!AptNm & ""         ' Depreciated
+            Me.Street = Rst!Street & ""
+            Me.City = Rst!City & ""
+            Me.First = Rst!First & ""
+            Me.Last = Rst!Last & ""
+        End If
+    Me.Refresh
+    Set dBs = Nothing
+    Set Rst = Nothing
+End Sub
+
+
+Private Sub IDDropdown_AfterUpdate()
+   Call ShowBike          'Get bike info
+   BikeSale (Me.BikeCheck) ' if there's a value in bike sale, presume that we're selling a bike, otherwise no.
+   TotalPurchases          ' may need to update total, now that we have bike's info
+End Sub
+
+Private Sub Rcpt_Click()
+    Call Reciept(2)
+End Sub
+
+Private Sub DoneButton_Click()   ' Validate data, record sale, and update user log and bike log as necessary
+
+    DateTime = Now ' Reset the form date and time to hopefully prevet errors
+
+' Calling Variables
+    Dim DoUpdate As Boolean
+    Dim CBCNo As Integer
+    Dim dBs As DAO.Database
+    Dim Rst As DAO.Recordset
+    Dim strCriteria As String
+    Dim Buyer As String, BuyerP As String, BuyerEm As String, Seller As String, Description As String
+    Dim BikeStatus As String, BikeDesc As String
+    Dim bikeValue As Single, CBCprice As Single
+    Dim SaleDate As String, NewBikeDesc As String
+    Dim Addanother, sell As Integer
+    Dim errorString As String, fatalErrors As String, okErrors As String
+       
+    errorString = validateErrors  ' calls up validate errors function and pulls up errors
+    
+    fatalErrors = Left(errorString, InStr(1, errorString, " OKAY ERRORS") - 1) 'separates out "Fatal Errors"
+    okErrors = Mid(errorString, InStr(1, errorString, " OKAY ERRORS") + 12) ' separate outs "Warning Errors"
+          
+    If fatalErrors <> "" Then
+        MsgBox "Transaction CANNOT be recorded due to following fatal errors:" & Chr(10) & fatalErrors, vbCritical
+        Exit Sub
+    End If
+    
+    If okErrors = " " Then okErrors = " *  NONE  *" & Chr(10)
+    If MsgBox("Please double check ALL entries." & Chr(10) & Chr(10) & "Also review following errors/warnings before proceeding:" & Chr(10) & _
+        okErrors & Chr(10) & "Click 'OK' to record this transaction or 'Cancel' to return to editing. ", vbOKCancel) = vbCancel Then Exit Sub
+
+Set dBs = CurrentDb                                                 ' Open up database for reading/writing
+
+'******************** BIKE SALE (If we can't get the bike to update right, we don't want the sale recorded) *************************
+If Me.BikeCheck Or Me.BikeAmount <> 0 Then                 ' if bike sale first find the bike in table
+    
+    With Me
+        If IsNull(.IDDropdown) Or .IDDropdown = 0 Then .IDDropdown.Value = -1       ' Use bike # -1 for unknown bikes
+        CBCNo = .IDDropdown                         ' Add bike info to our variables
+        CBCprice = .BikeAmount
+        SaleDate = .SaleDate1
+        Description = .BikeDesc & ""
+        Buyer = .CustomerDD & ""
+        BuyerP = .CustPh & ""
+        BuyerEm = .CustEm & ""
+        Seller = .ShopMgr1 & ""
+    End With
+
+    ' Sets SQL String of query to search for CBC bike number
+    strCriteria = "[CBCID]= " & CBCNo            'Define search sring using bike number
+    Set Rst = dBs.OpenRecordset("Bikes", dbOpenDynaset)  ' Open up bikes database
+    With Rst
+        .FindFirst strCriteria                                                                                      'find first Object
+        If .NoMatch Then           'Check to see if bike matches.
+            If MsgBox("Error, Bike #" & CBCNo & " & does not appear to exist." & Chr(13) & "Record anyway?", vbYesNo, "Record") = vbYes Then
+                bikeValue = 0
+                BikeDesc = "UnID'd Bicycle: " & Me.BikeDesc
+                BikeStatus = "Unknown"
+                DoUpdate = False
+            Else
+                Exit Sub                   ' If don't get the Okay on an unfound bike, then exit
+            End If
+        Else
+            DoUpdate = True                ' If bike does match, we do want to update it in the database
+            BikeStatus = !Status           ' takes current data on bike to tell user
+            bikeValue = !Value
+            
+            If IsNull(!Description) Then
+                BikeDesc = "NO DESCRIPTION SET"
+            Else
+                BikeDesc = !Description
+            End If
+        End If
+    End With
+    
+    'Apending New description
+    NewBikeDesc = BikeDesc & Chr(10) & " SOLD " & SaleDate & " for $" & CBCprice & " from " & _
+        Seller & " to " & Buyer & "."
+    
+    ' Displays to user current status of bike & proposed updates.
+    If DoUpdate Then
+        If MsgBox("Bike #" & CBCNo & " is currently tagged as *" & BikeStatus _
+            & "* is listed for $" & bikeValue & ". Notes: " & BikeDesc & "." & Chr(10) & Chr(10) _
+            & "'OK' will change Bike's database status to *Sold*, price to *$" _
+            & CBCprice & "* description to:" & Chr(10) & "*" & NewBikeDesc & "*." & Chr(10) & _
+            "Proceed?", vbOKCancel) = vbCancel _
+            Then Exit Sub                                                                                                                                     ' If not okay, exit sub, otherwise, okay to update the Bike
+    End If
+End If                                                                                                                                                           'closing bike subroutine 1
+'************************ END BIKE SALE  **********************************
+
+'************************* ADDING SALES DATA TO SALES DB ***************************
+
+Select Case Me.SaleType.Value
+    Case "Bank Deposit"
+        RecordSale "Bank Deposit", Me.TotalAmount, Me.UsedDesc, 0
+    Case "Purchase"
+        RecordSale "Shop Purchase", Me.TotalAmount, Me.UsedDesc, 0
+    Case "Other"
+        If Me.TotalAmount < 0 Then
+            RecordSale "Other Debit", Me.TotalAmount, Me.UsedDesc, 0
+        Else
+            RecordSale "Other Credit", Me.TotalAmount, Me.UsedDesc, 0
+        End If
+    Case "Sale"
+        If Me.UsedAmount > 0 Then _
+            RecordSale "Sale Used", Me.UsedAmount, Me.UsedDesc, 0
+        If Me.UsedAmount < 0 Then _
+            RecordSale "Other Debit", Me.UsedAmount, Me.UsedDesc, 0
+        If Me.NewAmount > 0 Then _
+            RecordSale "Sale New", Me.NewAmount, Me.NewDesc, 1
+                If Me.BikeAmount > 0 Then
+            If DoUpdate Then
+                RecordSale "Bike Sale", Me.BikeAmount, Me.BikeDesc, 2   ' passing through "2" triggers recording bike ID
+            Else
+                RecordSale "Bike Sale", Me.BikeAmount, Me.BikeDesc, 5   ' don't want to record bike ID for some bikes
+            End If
+        End If
+        
+        If Me.DonationAmount > 0 Then
+            If Me.CustomerDD <> "Cash" And Me.CustomerDD <> "" And Not (IsNull(Me.CustomerDD)) Then
+                RecordSale "Donation", Me.DonationAmount, "Donation from " & Me.CustomerDD, 3
+            Else
+                RecordSale "Donation", Me.DonationAmount, "Anonymous Donation", 3
+            End If
+        End If
+        
+        If Me.MembershipAmount > 0 Then _
+            RecordSale "Membership", Me.MembershipAmount, "New Membership for " & Me.CustomerDD, 4
+    Case Else
+        Exit Sub
+End Select
+    
+' ************** UPDATE MEMBERSHIP STATUS IN DB IF NECESSARY ***********
+
+If Me.MemberCheck Then
+    Set Rst = dBs.OpenRecordset("People", dbOpenDynaset)                    ' Open back up Users DB
+    With Rst
+        .MoveFirst                                                                                                        'make sure we're at beginning of DB
+        .FindFirst "[Nickname] = """ & Me.CustomerDD & """"      ' find customer by nickname                                                                         'find bike with our CBC #
+        If .NoMatch Then           'Check to see if customer is in database
+            MsgBox ("Sorry, " & Me.CustomerDD & " doesn't appear to be in our database. Membership status NOT recorded.")
+        Else
+            .Edit             ' open it up to editing
+            !Member = True    ' mark customer as member
+           .Update
+            MsgBox ("Customer's " & Me.CustomerDD & " membership status recorded.")
+        End If
+    End With
+    Set Rst = Nothing
+End If
+
+' ************** UPDATE BIKE IN DB IF NECESSARY ************************
+
+If DoUpdate Then                                                                                            ' If it found a bike with the CBC ID to update, then...
+    Set Rst = dBs.OpenRecordset("Bikes", dbOpenDynaset)                    ' Open back up bikes DB
+    With Rst
+        .MoveFirst                                          'make sure we're at beginning of DB
+        .FindFirst strCriteria                              'find bike with our CBC #
+        .Edit                                               ' open it up to editing
+        !Status = "Sold"                                    ' mark bike as sold
+        !Value = CBCprice                                   ' its value is now its sale price
+        !DisposalDate = Date
+        !Description = NewBikeDesc
+        !Buyernm = Buyer
+        !BuyerPh = BuyerP
+        !BuyerEmail = BuyerEm
+        .Update
+    End With
+    MsgBox ("Bike #" & Me.IDDropdown & " description and status updated.")
+    Set Rst = Nothing
+    
+''''''Add bike to user's list ''''''''
+    
+    strCriteria = "[Nickname] = """ & Me.CustomerDD & """"   'Define Object to find (search for our customer by NickName)
+    Set Rst = dBs.OpenRecordset("People", dbOpenDynaset)     ' Opening up People Database
+    Rst.FindLast strCriteria                                 ' Looking for first (only) occurrence of our nickname
+    If Rst.NoMatch Then                                      ' If can't find, error & exit
+          TellAustin ("No such user. Can't update user's bikes)")
+          Set dBs = Nothing
+          Exit Sub
+    Else
+        With Rst                               ' otherwise, open record
+            .Edit                              ' edit
+            !Bikes = !Bikes & ", " & CBCNo     ' Add the new bike to the user's name
+            .Update
+            MsgBox ("User's bike list updated.")
+        End With
+    End If                                                                                                              ' done looking for match
+    Set Rst = Nothing
+End If                                                                                                                  'done updating user records after bike sale
+
+'close database stuff
+  Set dBs = Nothing
+  Set Rst = Nothing
+
+'close form or another sale?
+If MsgBox("Add another sale? Click 'No' to return to main menu.", vbYesNo) = vbYes Then
+    ResetForm
+    Me.UsedDesc.SetFocus
+Else
+    CloseAllForms           ' if no new sale, head back to main screen
+End If
+
+End Sub
+
+Private Sub CreditCards_Click()
+    MsgBox "Yes! Open the browser in Chrome. Click Pay with Paypal/Card link. Enter number of dollars as item. Pay with Paypal or Credit Card."
+    MsgBox "Manager should type sale as normal, but under payment type, use 'Credit Card.' That's it."
+End Sub
+
+Private Sub SaleDate1_AfterUpdate()   ' If you change the sale date, double checks to make sure that's a good idea
+    If Me.SaleDate1 <> Date Then
+        If MsgBox("Are you sure you want to record a sale on a date other than today?" & Chr(10) & _
+        "It's usually a bad idea and your bookkeeper might end up hating you." & Chr(10) & _
+        "Proceed anyway?", vbYesNo) = vbNo Then Me.SaleDate1 = Date
+    End If
+End Sub
+
+' ***
+' ***
+' ******************** PRIVATE Subroutines for this form *********************************
+
+Private Sub RecordSale(SalezType As String, Dollarz As Currency, Deszcription As String, addlTime As Integer)
+
+Dim Rst As DAO.Recordset
+Dim dBs As DAO.Database
+Dim recordTime
+
+Set dBs = CurrentDb
+Set Rst = dBs.OpenRecordset("SELECT * FROM Sales", dbOpenDynaset, dbSeeChanges)     ' Open up Sales Database
+
+    recordTime = DateAdd("s", addlTime, Me.DateTime)
+    With Rst
+        .AddNew                  ' New sale record added to db with information from form ("me.")
+        !Timestamp = recordTime  ' add seconds to timestampMe.DateTime to prevent duplicates
+        !SaleDate = Me.SaleDate1
+        !Manager = Me.ShopMgr1
+        !Buyer = Me.CustomerDD
+        !SaleType = SalezType
+        !Payment = Me.PaymentType
+        !Price = Dollarz
+        !Details = Deszcription
+        If addlTime = 2 Then
+            !bikeID = Me.IDDropdown
+        Else
+            !bikeID = Null
+        End If
+        !Notes = Me.Notes1 & " "
+        .Update
+        .Close
+    End With
+    With Me
+        .Refresh                                ' reboot screen showing new sale (maybe?)
+        .TodaysSales.Requery                    ' show new sales data
+        .DayTotal.Requery
+        .Expected.Requery
+        .Refresh
+        calculateCash
+        MsgBox ("$" & Dollarz & " " & SalezType & " recorded " & TimeValue(recordTime) & ".")
+    End With
+    
+    Set Rst = Nothing
+End Sub
+
+
+Private Sub IsSale(Sale As Boolean)
+    With Me                         ' making boxes invisible if not a sale (or visible if it is)
+        .NewAmount.Visible = Sale
+        .NewLabel.Visible = Sale
+        .NewDesc.Visible = Sale
+        .BikeAmount.Visible = Sale
+        .BikeDesc.Visible = Sale
+        .BikeCheck.Visible = Sale
+        .BikeLabel.Visible = Sale
+        .DonationAmount.Visible = Sale
+        .DonationLabel.Visible = Sale
+        .MemberCheck.Visible = Sale
+        .MembershipLabel.Visible = Sale
+        .MembershipAmount.Visible = Sale
+        .NegativeWarning.Visible = False
+        .UsedDesc = Null
+        .UsedLabel.Caption = "Used Parts:"
+        If Sale = False Then         ' if it's not a sale, zero out amounts & update labels
+            .UsedLabel.Caption = .SaleType.Value & ":"
+            .NewAmount = 0
+            .BikeAmount = 0
+            .DonationAmount = 0
+            .MembershipAmount = 0
+            .NewDesc = Null
+            .BikeDesc = Null
+            .MemberCheck = False ' if we're not selling something, we're also not selling a membership
+            .BikeCheck = False                                'and we're also not selling a bike
+            BikeSale (False)  ' so black out the CBC ID field as well and turn off forms
+            .TotalAmount = .UsedAmount  ' the total = the only line left (top line)
+        End If
+        TotalPurchases
+    End With
+
+End Sub
+
+Private Sub TotalPurchases()
+    Me.TotalAmount.Value = Me.UsedAmount.Value + Me.NewAmount.Value + Me.BikeAmount.Value + Me.DonationAmount.Value + Me.MembershipAmount.Value
+     Select Case Me.SaleType.Value     ' If not a usual transaction, then warn:
+        Case "Purchase"
+            forceNeg
+        Case "Bank Deposit"
+            forceNeg
+    End Select
+    If Me.TotalAmount < 0 Then
+        Me.InOrOut.Value = "coming out of register."
+    Else
+        Me.InOrOut.Value = "going into register."
+    End If
+End Sub
+
+Private Sub UpdateUser_Click()
+
+If IsNull(Me.CustomerDD) Then                                          ' make sure a user is selected
+    MsgBox ("Please select User to edit and try again.")
+    Exit Sub
+End If
+
+If MsgBox("Leave form and edit user? (Current form data may be lost)", vbYesNo) = vbYes Then 'open edit user form and send over user name
+  DoCmd.OpenForm formName:="PeopleDBEdit", View:=acNormal, OpenArgs:=Me.CustomerDD.Value
+End If
+End Sub
+
+Private Sub SaleType_AfterUpdate()              ' Subroutine ran upon changing the transaction type
+    If IsNull(Me.SaleType.Value) Then Exit Sub ' can't run this unless we've picked a type of sale
+    Me.Notes1.Value = ""              ' Empty notes field
+    Select Case Me.SaleType.Value     ' Depending on transaction type, set visibilites and give warnings
+       Case "Sale"
+            IsSale (True)
+            Me.Customer_Label.Caption = "Customer:"
+       Case "Purchase"
+             MsgBox "Ordinarily shop purchases should be handled by shop committee." & Chr(10) & _
+             "Please let the shop committee know you're using money from the till" & Chr(10) & _
+             "and give a receipt to the shop chair, bookkeeper, or put in the file cabinet."
+             MsgBox "Use 'Customer' = person using money for purchase" & Chr(10) & _
+                "'Shop Manager' = manager approving purchase." & Chr(10) & _
+                "Amount taken out of register for purchase must be negative."
+             Me.Customer_Label.Caption = "Purchaser:"
+             Me.PaymentType.Value = "Cash"
+             IsSale (False)
+        Case "Bank Deposit"
+             MsgBox "'Amount' MUST match 'Subtotal Cash' from deposit slip." & Chr(10) & _
+               "'Customer' = person validating money deposited." & Chr(10) & _
+               "'Shop Manager' = takes money to bank." & Chr(10) & _
+               "Please use TWO different managers!"
+             Me.PaymentType.Value = "Cash"
+             Me.Customer_Label.Caption = "Double Counted:"
+             IsSale (False)
+             Me.UsedDesc.Value = "plus # check(s) totalling $XX.XX."
+        Case Else
+            IsSale (False)
+            Me.Customer_Label.Caption = "Customer:"
+            Me.NegativeWarning.Visible = True       ' Put up Other Warning
+    End Select
+    TotalPurchases '   Current function to total boxes & change make sure correct sign (positive/negative)
+    ' checkDollars '   Depreciated function (used to change positive/negative)
+    BikeSale (Me.BikeCheck.Value) ' if the Bike box is checked, presume that we're selling a bike, otherwise no.                                                                                                    ' Update the bike dropdown list (if needed)
+End Sub
+
+Public Sub ShowBike()       ' Populate form data with information on bike
+
+    ' set variables
+    Dim BikeStatus As String, BikeDesc As String
+    Dim dBs As DAO.Database
+    Dim CBCNo As Integer
+    Dim Rst As DAO.Recordset
+    Dim strCriteria As String
+    Dim boldFont As Boolean
+    
+    boldFont = False
+    
+    If IsNull(Me.IDDropdown.Value) Then Exit Sub ' Don't run if no bike has been chosen
+    
+    Set dBs = CurrentDb
+    
+    CBCNo = Me.IDDropdown.Value
+    ' Sets SQL String of query to search for CBC bike number
+    strCriteria = "[CBCID]= " & CBCNo                  'Define Object to find
+    Set Rst = dBs.OpenRecordset("Bikes", dbOpenDynaset)
+    With Rst
+        .FindFirst strCriteria                         'find "first" Object (should be only one)
+        If Rst.NoMatch Then                             'No Match error
+            MsgBox ("Error, Bike #" & CBCNo & " & does not appear to exist.")
+            Exit Sub
+        Else                                                        'Add Data to sheet
+            BikeStatus = !Status
+            Me.BikeAmount = !Value
+            Me.Serial = !SerialNo
+            Me.PoPo2 = !PoPo
+            Me.Make = !Make
+            Me.Model = !Model
+            Me.Type = !Type
+            Me.TagColor = !Status
+            Me.BG = !boygirl
+            Me.Size = !Size
+            Me.Speeds = !Speeds
+            Me.BikeDesc = "#" & CBCNo & ": " & !Color & " " & !Make
+            If IsNull(!Description) Then
+                BikeDesc = "NO DESCRIPTION SET"
+            Else
+                BikeDesc = !Description
+            End If
+        End If
+        If !Status = "Sold" Then
+            MsgBox ("Warning, this bike is marked as having already been sold. If that's wrong, please edit the bike")
+            boldFont = True
+        End If
+        If !Status = "Recycled" Then
+            MsgBox ("Warning, this bike is marked as having already been recycled. If that's wrong, please edit the bike")
+            boldFont = True
+        End If
+        
+    End With
+    Me.TagColor.FontBold = boldFont
+    Me.Notes1 = BikeDesc
+End Sub
+
+
+Private Sub BikeSale(Bike As Boolean) ' change status of bikesold list box and printing options depending on whether "Bike Sale" or not
+
+Me.Rcpt.Visible = Not Bike
+Me.IDDropdown.Locked = Not Bike
+Me.IDDropdown.Enabled = Bike
+Me.BikeBackground.Visible = Bike
+Me.PoliceLabel.Visible = Bike
+Me.PoPo2.Visible = Bike
+Me.Pr.Visible = Bike
+Me.IDDropdown.Visible = Bike
+Me.BikeIDwarning.Visible = Bike
+Me.BikeSoldLabel.Visible = Bike
+Me.BikeIDwarning2.Visible = False
+If Bike Then
+    Me.IDDropdown.Requery
+    Me.IDDropdown.SetFocus
+Else
+    Me.IDDropdown.Value = Null
+    If Me.BikeAmount <> 0 Then Me.BikeIDwarning2.Visible = True
+End If
+Me.Refresh
+End Sub
+
+
+Private Function validateErrors() As String      'Validating data and assigning fatal and nonfatal errors to data
+     
+     Dim fatalErrors As String, okErrors As String
+     fatalErrors = ""
+     okErrors = ""
+     
+     ' BikeSale (Me.BikeCheck.Value) ' if there's a value in bike sale, presume that we're selling a bike, otherwise no.
+     With Me
+           ' Shop manager is required
+        If IsNull(.ShopMgr1.Value) Or .ShopMgr1.Value = "" Then _
+            fatalErrors = fatalErrors & " *  Shop manager is Required." & Chr(10)
+           ' Sale Type is required
+        If .SaleType.Value = Empty Or IsNull(.SaleType.Value) Or .SaleType.Value = "" Then _
+            fatalErrors = fatalErrors & " *  Sale type is Required." & Chr(10)
+           'Payment form is required
+        If .PaymentType.Value = Empty Or IsNull(.PaymentType.Value) Or .PaymentType.Value = "" Then _
+            fatalErrors = fatalErrors & " *  Payment type (cash, check, etc.) is Required." & Chr(10)
+            'Dollar amount can't be empty, set to $0
+        If IsNull(.TotalAmount.Value) Or .TotalAmount.Value = Empty Then .TotalAmount.Value = 0
+            'Dollar amount shouldn't be $0
+        If .TotalAmount.Value = 0 Then _
+            okErrors = okErrors & " *  $0 Transaction!? - seems unlikely." & Chr(10)
+            'Usually should sell to a customer or have someone in customer field
+        If .CustomerDD.Value = Empty Or IsNull(.CustomerDD.Value) Then _
+             okErrors = okErrors + " *  " & Left(Me.Customer_Label.Caption, Len(Me.Customer_Label.Caption) - 1) & _
+             " name expected." & Chr(10)
+                    
+        Select Case .SaleType.Value     ' If not a sale additional warnings, then warn:
+            Case "Purchase"
+                If IsNull(.UsedDesc) Or .UsedDesc = "" Or Len(.UsedDesc) < 3 Then
+                    fatalErrors = fatalErrors + " *  Explain in 'Description' what you're purchasing (& why)" & Chr(10)
+                Else
+                    okErrors = okErrors + " *  Please make sure to return receipt & change to bookkeeper or file." & Chr(10)
+                End If
+            Case "Bank Deposit"
+                .UsedAmount.Value = -Abs(.UsedAmount)   ' last chance to make sure negative
+                If .PaymentType.Value <> "Cash" Then _
+                    fatalErrors = fatalErrors + " *  Record Bank Deposit ONLY as Cash; VALUE is amount of Cash deposited." & Chr(10) & _
+                    " *  Write # and amount of checks in Description ONLY." & Chr(10) & " *  Record Paypal & HOURS transactions as '(Bike) Sale' NOT as 'deposits.'" & Chr(10)
+                If .UsedDesc.Value = "plus # check(s) totalling $XX.XX." Then _
+                    fatalErrors = fatalErrors + " * Please write # & total of checks with deposit in description (even if none for $0.)" & Chr(10)
+            Case "Sale"
+            
+                If .BikeCheck Then              ' special considerations for sales of bikes
+                    If .CustomerDD.Value = Empty Or IsNull(.CustomerDD.Value) Or .CustomerDD.Value = "Cash" Then _
+                        fatalErrors = fatalErrors + " *  Customer (with signed waiver) required for bike sales." & Chr(10)
+                    If IsNull(.IDDropdown.Value) Then _
+                        fatalErrors = fatalErrors + " *  CBC Bicycle ID required for bike sale; if none, uncheck box." & Chr(10)
+                    If .PoPo2 = vbNo Then _
+                        okErrors = okErrors + " *  Bike has not been check with Police." & Chr(10)
+                    If .TagColor.Value = "Red" Or .TagColor.Value = "Sold" Or .TagColor.Value = "Recycled" Then _
+                        okErrors = okErrors + " *  Bicycle is tagged as " & UCase(.TagColor.Value) & "! Okay?" & Chr(10)
+                    If .BikeAmount = 0 Then _
+                        okErrors = okErrors + " *  Are you sure you want to sell a bike for $0?" & Chr(10)
+                Else
+                    If .BikeAmount <> "0" Then
+                        If IsNull(.BikeDesc) Or .BikeDesc = "" Or Len(.BikeDesc) < 3 Then _
+                            fatalErrors = fatalErrors + " *  Provide in 'Bike Description' bikes (& serial #) customer purchased for " & .BikeAmount & "." & Chr(10)
+                        okErrors = okErrors + " *  Are you sure you want to sell a bike without a CBC Tag!?" & Chr(10)
+                    End If
+                End If
+                
+                If .MemberCheck Then            ' special consideration for membership sales
+                    If .CustomerDD.Value = Empty Or IsNull(.CustomerDD.Value) Or .CustomerDD.Value = "Cash" Then _
+                        fatalErrors = fatalErrors + " *  Customer name required to correctly credit membershp sales." & Chr(10)
+                End If
+                
+                If .DonationAmount <> 0 Then    ' special consideration for donations
+                    If .CustomerDD.Value = Empty Or IsNull(.CustomerDD.Value) Or .CustomerDD.Value = "Cash" Then _
+                        okErrors = okErrors + " *  Customer's $" & .DonationAmount & " donation will be anonymous. Okay?" & Chr(10)
+                End If
+                
+                If .UsedAmount < 0 Then         ' special considerations for used purchases
+                    If IsNull(.UsedDesc) Or .UsedDesc = "" Or Len(.UsedDesc) < 3 Then _
+                    fatalErrors = fatalErrors + " *  Explain in 'Description' purpose of customer's $" & Abs(.UsedAmount) & " credit" & Chr(10)
+                    okErrors = okErrors + " *  Are you sure you meant to credit customer $" & Abs(.UsedAmount) & "? If not, make 'Used Parts' amount positive number." & Chr(10)
+                Else
+                    If .UsedAmount > 0 Then
+                        If IsNull(.UsedDesc) Or .UsedDesc = "" Or Len(.UsedDesc) < 3 Then _
+                            fatalErrors = fatalErrors + " *  'Used Description' must include items customer purchased for $" & .UsedAmount & "." & Chr(10)
+                    End If
+                End If
+                
+                If .NewAmount > 0 Then           ' special considerations for new purchases
+                    If IsNull(.NewDesc) Or .NewDesc = "" Or Len(.NewDesc) < 3 Then _
+                        fatalErrors = fatalErrors + " *  'New Description' must include new item(s) customer purchased for $" & .NewAmount & "." & Chr(10)
+                End If
+        
+            Case Else            ' the dreaded "Other" transactions. I'll regret including this, won't I?
+                If IsNull(.UsedDesc) Or .UsedDesc = "" Or Len(.UsedDesc) < 3 Then _
+                    fatalErrors = fatalErrors + " *  Explain in 'Description' why $" & Abs(.UsedDesc) & " is going in/out of register." & Chr(10)
+                If .TotalAmount < 0 Then
+                    okErrors = okErrors + " *  Please be judicious in accepting returns. Verify that item came from CBC." & Chr(10) & _
+                    " *  If this is a purchase, please use 'Purchase' as transaction type ." & Chr(10) & _
+                    " *  If money is going to the bank, please use 'Bank Deposit' as transaction type." & Chr(10) & _
+                    " *  Otherwise, cash should ordinarily not leave the register without a VERY compelling reason."
+                Else
+                    okErrors = okErrors + " *  If this is a sale, membership, or donation, please use 'Sale' as transaction type." & Chr(10) & _
+                    " *  Otherwise, please make sure the description adequately explains why money is being added to register."
+                    If .PaymentType = "Check" Then _
+                        okErrors = okErrors + " *  Returning/voiding Check? If so, go ahead. Otherwise, don't record as 'Check.'" & Chr(10)
+                    If .PaymentType <> "Check" And .PaymentType <> "Cash" Then _
+                        okErrors = " *  Returning '" & .PaymentType & "?' Are you sure you're able to do that? Just checking."
+                End If
+        End Select
+      
+    End With
+    validateErrors = fatalErrors & " OKAY ERRORS " & okErrors
+    
+End Function
+
+Private Sub calculateCash()     ' updates cash register totals on right hand side
+Dim dBs As DAO.Database
+Dim DayTTL As DAO.Recordset
+    
+    Set dBs = CurrentDb
+    Set DayTTL = dBs.OpenRecordset("SELECT Sum(Sales.Price) AS PriceTTL FROM Sales " & _
+        "WHERE (Sales.Payment = 'Cash' And Sales.SaleDate = #" & Me.SaleDate1 & "#);", dbOpenDynaset, dbSeeChanges)
+    If IsNull(DayTTL!PriceTTL) Then             ' if total is 0 set it to zero to prevent error
+        Me.DayTotal.Value = 0
+    Else
+        Me.DayTotal.Value = DayTTL!PriceTTL         'Put total on sheet
+    End If
+'add all values to sheet
+    Me.Expected.Value = Me.DayTotal.Value + Me.CashIn.Value
+    Me.TodaysSales.Requery
+End Sub
+Private Sub forceNeg()  ' force values to be negative for bank deposits & shop purchases
+    Me.UsedAmount.Value = -Abs(Me.UsedAmount)
+    Me.TotalAmount.Value = -Abs(Me.TotalAmount)
+End Sub
+
+Private Function DataMassage(MyString As String) As String
+    DataMassage = MyString
+    If UnComma(DataMassage) <> DataMassage Then
+        MsgBox ("Your commas were delicious, but they mess up importing into Quickbooks.")
+        DataMassage = UnComma(DataMassage)
+    End If
+    If UnQuote(DataMassage) <> DataMassage Then
+        MsgBox ("Quotation marks make Quickbooks cry. Either use 'inches' or single quotes.")
+        DataMassage = UnQuote(DataMassage)
+    End If
+End Function
+
+Private Function UnComma(MyString As String) As String
+
+Dim commaFound As Boolean
+Dim CommaSpot
+
+commaFound = True
+UnComma = MyString
+
+    Do
+        CommaSpot = InStr(1, UnComma, ",", vbBinaryCompare)        ' locate the first comma in the string
+        If CommaSpot > 0 Then                           ' if it's there
+           UnComma = Left(UnComma, CommaSpot - 1) & ";" & Mid(UnComma, CommaSpot + 1) 'replace with ";"
+        Else
+           commaFound = False                  ' otherwise, we're comma free
+        End If
+    Loop While commaFound                      ' repeat until comma free
+End Function
+
+Private Function UnQuote(MyString As String) As String
+
+Dim QuoteFound As Boolean
+Dim QuoteSpot
+
+QuoteFound = True
+UnQuote = MyString
+
+    Do
+        QuoteSpot = InStr(1, UnQuote, """", vbBinaryCompare)        ' locate the first " in the string
+        If QuoteSpot > 0 Then                           ' if it's there
+           UnQuote = Left(UnQuote, QuoteSpot - 1) & " in." & Mid(UnQuote, QuoteSpot + 1) 'replace with "in."
+        Else
+           QuoteFound = False                  ' otherwise, we're quote free
+        End If
+    Loop While QuoteFound                      ' repeat until quote free
+End Function
+
+
+' ***
+' ***
+' ************** DEPRECIATED & UNUSED FUNCTIONS (In case we need them or want to fix in the future) ************************
+
+Private Sub Price_AfterUpdate()            ' depreciated subroutine that swapped signs on prices
+    If Me.Price.Value < 0 Then Me.Price.Value = Me.Price.Value * -1
+End Sub
+
+Private Function checkDollars() As Boolean ' DEPRECIATED ' Boolean function returning "True" if the dollar sign (positive) matches transaction type
+    Dim SType As String
+    Dim Dollars As Long
+    Dim SBneg As Boolean 'should it be negative?
+          
+    ' DEPRECIATING FUNCTION FOR NOW
+    Exit Function
+    ' DEPRECIATING FUNCTION FOR NOW - 1/16/15
+
+    If Not (IsNull(Me.SaleType.Value)) Then SType = Me.SaleType.Value                                                                       ' Pulls in sale type
+    If Not (IsNull(Me.UsedDesc.Value)) Then Dollars = Me.UsedAmount.Value                                                                    ' and dollar amount
+    SBneg = False                                                                                                ' sets up which value should be negative
+    If SType = "Purchase" Or SType = "Bank Deposit" Then SBneg = True
+    
+    checkDollars = True                                                                                     ' no sense in running it if there's no type or dollar amount to compare yet
+    If SType = "" Or IsNull(SType) Then Exit Function
+    If Dollars = 0 Or IsNull(Dollars) Then Exit Function
+    
+    If SBneg And Dollars > 0 Then                                                                        ' If it should be negative and isn't...
+        checkDollars = False
+        MsgBox "The dollar amount for a " & SType & " is expected to be negative. Please use the - sign or parentheses ($XX.XX) or change transaction type.", vbOKOnly
+    End If
+    
+    If Not (SBneg) And Dollars < 0 Then                                                              ' If it should be positive and isn't...
+        checkDollars = False
+        MsgBox "The dollar amount for a " & SType & " is expected to be positive. Please remove the - sign or parentheses ($XX.XX) or change transaction type.", vbOKOnly
+    End If
+End Function
+
+
+Private Sub Pr_Click()         ' Depreciated? I can't find out what this ties to. Sounds good though - Bobby 1/16/15
+'' for now this isn't working.
+    MsgBox ("Receipt function is not working yet. Sorry")
+    Exit Sub
+' Depreciated for now
+Dim PoPo
+DoCmd.OpenForm ("PoPoform")     ' Form for OSU Registration
+With Forms("PoPoform")
+'Personal info
+    .phone = Me.CustPh
+    ' .HSNum = Me.House    ' Depreciated
+    .Street = Me.Street
+    ' .AptNum = Me.Apt     ' Depreciated
+    .State = Me.State
+    .City = Me.City
+    .Zip = Me.Zip
+    .First = Me.First
+    .Last = Me.Last
+'Bike Info
+    .Value = Me.BikeAmount
+    .Serial = Me.Serial
+    .Make = Me.Make
+    .Model = Me.Model
+    .Type = Me.Type
+    .Color = Me.TagColor
+    .BG = Me.BG
+    .Size = Me.Size
+    .Speeds = Me.Speeds
+End With
+    DoCmd.PrintOut
+    DoCmd.Close acForm, "PoPoform", acSaveYes
+Reciept (1)
+End Sub
+
+Private Sub Reciept(sel As Integer)        ' Depreciated
+Dim Item As String
+
+'' for now this isn't working.
+    MsgBox ("Receipt function is not working yet. Sorry")
+    Exit Sub
+
+''do stufs to print a reciept  need to make reciept Form
+    DoCmd.OpenForm ("Recipt")
+
+'Fill in data
+    With Forms("Recipt")
+        If sel = 1 Then
+            Item = Me.Make & " " & Me.Model & ", " & Me.TagColor & ", " & Me.Serial
+        End If
+        If sel = 2 Then
+           ' Item = Me.Descr1        ' will need updated, but it's not working anyway, so...
+        End If
+        .Item = Item
+        .Buyer = Me.First & " " & Me.Last
+        .Date = Date
+        .Description = Me.Notes1
+        .CBCID = Me.IDDropdown & " "
+        '.Price = Amount1              'also might need updated... hrmm?... since feature isn't working, not worrying about it
+    End With
+
+    DoCmd.PrintOut                     'prints to default printer
+    DoCmd.Close acForm, "Recipt", acSaveYes
+End Sub
+
+
+Private Sub UsedDesc_AfterUpdate()
+    Me.UsedDesc = DataMassage(Me.UsedDesc & "")
+End Sub
+===============
+Form_SalesSearch
+===============
+Option Compare Database
+Option Explicit
+
+Private Sub Calculate_Click()
+
+Me.MoneyBox.RowSource = "SELECT Sales.*" _
+ & " FROM Sales" _
+ & " WHERE 1 = 1" & Var & ";"
+'MsgBox (SQLstmt + " is search query SQL statement. (Message for debugging purpose only)")
+End Sub
+
+Private Function Var() As String
+
+Dim Dt, MM As String, MxP As String, MnP As String, sales As String
+Dim mCheck(6) As Boolean
+Dim mStatus(6) As String
+Dim i As Integer
+
+mStatus(1) = "Cash"
+mStatus(2) = "Check"
+mStatus(3) = "Paypal"
+mStatus(4) = "Volunteer Hours"
+mStatus(5) = "IOU"
+
+With Me
+mCheck(1) = .Cash.Value & ""
+mCheck(2) = .check.Value & ""
+mCheck(3) = .PPal.Value & ""
+mCheck(4) = .vol.Value & ""
+mCheck(5) = .IOU1.Value & ""
+
+'check, fix values
+If Not (IsNull((.Dt1.Value))) And Not (IsEmpty(.Dt1.Value)) And Not .Dt1.Value = "" Then
+    Dt = .Dt1.Value
+End If
+ 
+MM = .MM1 & ""
+
+sales = .SaleType & ""
+
+If IsNull(.MxP1.Value) Or .MxP1.Value = "" Then
+     MxP = 99999
+Else
+     MxP = .MxP1.Value
+End If
+
+If IsNull(.MnP1.Value) Or .MnP1.Value = "" Then
+     MnP = 0
+Else
+     MnP = .MnP1.Value
+End If
+
+End With
+      
+' ***** Set Query Statements
+    If IsNull(Dt) Or Dt = "" Or Not (IsDate(Dt)) Then
+    Else
+        Var = Var + _
+        " AND Sales.[SaleDate]=#" & Dt & "#"
+    End If
+    If Len(MM) > 1 Then 'checking manager
+        Var = Var + _
+         " AND Sales.[Manager] LIKE '*" & MM & "*'"
+    End If
+    If MxP > 0 Then 'checking max price
+        Var = Var + _
+         " AND Sales.[Price] <= " & MxP
+    End If
+    If MnP <= MxP Then 'checking min price
+        Var = Var + _
+         " AND Sales.[Price] >= " & MnP
+    End If
+    
+    If Len(sales) > 1 Then
+        Var = Var + _
+            " AND Sales.SaleType = '" & sales & "'"
+    End If
+    
+    For i = 1 To 5 'adding statuses that will be checked for
+        If mCheck(i) = False Then
+            Var = Var + _
+             " AND Sales.[Payment] <> '" & mStatus(i) & "'"
+        End If
+    Next i
+End Function
+
+Private Sub Returnlog_Click()
+    Call ReturnOK
+End Sub
+===============
+Form_Waiver
+===============
+Option Compare Database
+
+Private Sub Form_Load()
+    If MsgBox("Are you 18 years old or over?", vbYesNo) = vbNo Then
+        Me.EmergencyContact.Tag = "Required"
+        Me.EmergencyPhone.Tag = "Required"
+        Me.EmergencyLabel.Caption = "Parent/Guaridan"
+        Me.Birthday.Tag = "Required"
+        Me.GuardianBox.Visible = True
+        Me.GuardianBox.Tag = "Box"
+        Me.GuardianLabel.Visible = True
+        Me.GuardianText.Visible = True
+    End If
+    UpdateName
+End Sub
+
+Private Sub Birthday_LostFocus()
+    UpdateName
+End Sub
+
+Private Sub CancelButton_Click()
+    ReturnOK
+End Sub
+
+
+Private Sub EmergencyContact_LostFocus()
+    UpdateName
+End Sub
+
+Private Sub EmergencyPhone_LostFocus()
+    UpdateName
+End Sub
+
+
+
+Private Sub LastName_LostFocus()
+    UpdateName
+End Sub
+
+Private Sub FirstName_LostFocus()
+    UpdateName
+End Sub
+Private Sub Email_LostFocus()
+    UpdateName
+End Sub
+Private Sub Phone_LostFocus()
+    UpdateName
+    
+End Sub
+
+Private Sub UpdateName()
+    If Me.GuardianBox.Visible Then
+        Me.UserName.Caption = Trim(Me.EmergencyContact & " ")
+    Else
+        Me.UserName.Caption = Trim(Trim(Me.FirstName) & " " & Trim(Me.LastName))  ' Put the name entered into the bottom field
+    End If
+    
+    'If Len(Me.email) > 2 Then                   ' check to see if the boxes are filled in and highlight the ones that aren't
+    '    Me.email.BackColor = vbWhite
+    'Else
+    '    Me.email.BackColor = vbYellow
+    'End If
+    'If Len(Me.FirstName) > 1 Then
+    '    Me.FirstName.BackColor = vbWhite
+    'Else
+    '    Me.FirstName.BackColor = vbYellow
+    'End If
+    'If Len(Me.LastName) > 1 Then
+    '    Me.LastName.BackColor = vbWhite
+    'Else
+    '    Me.LastName.BackColor = vbYellow
+    'End If
+    'If Len(Me.phone) > 1 Then
+    '    Me.phone.BackColor = vbWhite
+    'Else
+    '   Me.phone.BackColor = vbYellow
+    'End If
+    
+    For Each Test In Me.Form                 ' checking form
+        If Test.Tag = "Required" Then             ' looking for 7 boxes (tagged as "Box")
+            'MsgBox (Test.Name)
+            If IsNull(Test) Then               ' If one isn't check
+                Test.BackColor = vbYellow
+            Else
+                Test.BackColor = vbWhite
+            End If
+        End If
+    Next
+End Sub
+
+Private Sub SignatureBlock_GotFocus()
+    Dim Test, GTG
+    GTG = True
+    For Each Test In Me.Form                 ' checking form
+        If Test.Tag = "Required" Or Test.Tag = "Box" Then             ' looking for 7 boxes (tagged as "Box")
+            If Test.Value = False Then               ' If one isn't check
+                MsgBox "All boxes must be checked before signing."
+                GTG = False
+                Test.SetFocus
+                Exit Sub
+                Exit For
+            End If
+            If IsNull(Test) Then              ' also, three boxes should be names, and need to have values in all three
+                MsgBox Test.Name & " must be provided."
+                Test.SetFocus
+                GTG = False
+                Exit Sub
+                Exit For
+            End If
+        End If
+    Next
+    If GTG Then Me.SignatureLabel.Visible = True
+    
+End Sub
+
+Private Sub SignatureBlock_AfterUpdate()
+
+    Dim fName As String, DiRectory As String
+    Dim dBs As DAO.Database
+    Dim Rst As DAO.Recordset
+    Dim strCriteria As String
+    Dim NickName As String, Nick As String, StreetAddress As String
+    Dim i As Integer
+       
+    
+    If UCase(Me.SignatureBlock) <> UCase(Me.UserName.Caption) Then
+        MsgBox "You must type your name exactly as it appears above."
+        Me.SignatureBlock.Value = ""        ' don't accept signature
+        Exit Sub
+    End If
+'    SendKeys "{PRTSC}"  ' for now, these seem to be saving images in dropbox, at minimum
+    
+    With CurrentProject
+        DiRectory = Left(.FullName, InStr(.FullName, .Name) - 1)
+    End With
+    Me.SignatureLabel.Visible = False
+    Me.SignatureBlock.BackStyle = Transparent
+    
+    fName = DiRectory & "\Waivers\Waiver - " & Me.LastName & " " & Me.FirstName & ".pdf"
+    DoCmd.OutputTo acOutputForm, "Waiver", acFormatPDF, fName, True, , , acExportQualityPrint
+    
+' Calling Variables
+   
+    i = 0
+    Set Rst = Nothing
+    Set dBs = Nothing
+
+' Creating unique shop nickname
+Me.FirstName.Value = Trim(Me.FirstName)
+Me.LastName.Value = Trim(Me.LastName)
+NickName = Left(UCase(Left(Me.FirstName, 1)) & LCase(Mid(Me.FirstName, 2)) & UCase(Left(Me.LastName, 1)) & LCase(Mid(Me.LastName, 2)), 20)
+
+Nick = NickName
+    Do While Not (IsNull(DLookup("[Nickname]", "People", "[Nickname] = '" & Nick & "'"))) ' is Nickname Unique
+        i = i + 1                                                                         ' if not add a digit, starting w/1
+        Nick = NickName & i
+    Loop                                                                                  ' repeat until you find a # that works
+    If i > 0 Then
+          NickName = NickName & i
+    End If
+'Pulling Data from Form and putting in People Table
+  
+  Set dBs = CurrentDb
+  Set Rst = dBs.OpenRecordset("SELECT * FROM People WHERE 1 = 0", dbOpenDynaset, dbSeeChanges)
+  With Rst
+    .AddNew
+    !NickName = NickName
+    !First = Me.FirstName & ""
+    !Last = Me.LastName & ""
+    !email = Me.email & ""
+    !phone = Me.phone
+    ' !Housenm = Me.Housenm 'needed for popo form ' Too bad, depreciated
+    StreetAddress = Me.Street
+    'If (Me.Apt <> "" And Not (IsNull(Me.Apt)) And Me.Apt <> 0) Then StreetAddress = StreetAddress + "; Apt. #" & Me.Apt
+    
+    !Street = Me.Street & ""
+    ' !AptNm = Me.Apt & "" ' Depreciating this as well
+    !City = Me.City & ""
+    '!State = Me.State & ""
+    '!Zip = Me.Zip & ""
+    !FoundHow = Me.FoundHow & " "
+    !WhyHere = Me.Expectations & " "
+    !EmailList = Me.EmailList
+    !Manager = False
+    !Waiver = True
+    !EContact = Me.EmergencyContact & ""
+    !EContactPhone = Me.EmergencyPhone & ""
+    !Gender = Me.Gender
+    !Birthday = Me.Birthday
+    !Bikes = "0"
+    .Update
+    .Close
+  End With
+
+'close stuff
+    Set dBs = Nothing
+    Set Rst = Nothing
+
+'close form or add another user?
+    If MsgBox("Add another user? 'No' returns to main screen.", vbYesNo) = vbYes Then
+        'reset form by closing and opening the waiver
+        CloseAllForms ("Waiver")
+    Else
+        CloseAllForms
+    End If
+    
+    'PassThruData = "Waiver=True~First=" & Me.FirstName & "~Last=" & Me.LastName & "~email=" & Me.email & "~phone=" & Me.phone
+    'DoCmd.Close
+    'DoCmd.OpenForm "PeopleDB", , , , , , PassThruData
+End Sub
+
+
+===============
+Form_Donationrecipt
+===============
+Option Compare Database
+
+Private Sub Rcpt_Click()
+'make code for selecting bike and populating here...
+End Sub
+===============
+Form_PoliceLog
+===============
+Option Compare Database
+
+
+
+Private Sub EndDateBox_LostFocus()
+    If IsDate(Me.StartDateBox) And IsDate(Me.EndDateBox) Then
+        SetSearch
+    Else
+        MsgBox "Dates required to run log"
+    End If
+End Sub
+
+Private Sub Form_Load()
+Dim searchString As String
+Dim startDate As String
+Dim Okay As Boolean
+    Do
+        startDate = InputBox("Starting date for this report?", "Report Start Date")
+        Okay = False
+        If IsDate(startDate) Then Okay = True
+        If startDate > Date Then Okay = False
+    Loop While Okay = False
+    Me.StartDateBox = startDate
+    Call SetSearch
+End Sub
+
+Private Sub SetSearch()
+    searchString = "SELECT Bikes.CBCID, Bikes.Make, Bikes.Model, Bikes.SerialNo, Bikes.Color, Bikes.Type " & _
+        "FROM Bikes " & _
+        "WHERE (((Bikes.PoPo) = False) And ((Bikes.DisposalDate) Is Null) And " & _
+            "(Bikes.DonationDate > #" & Me.StartDateBox & "#) And (Bikes.DonationDate < #" & Me.EndDateBox & "#) And " & _
+            "Not (Bikes.Status = 'Sold') And Not (Bikes.Status = 'Recycled')) " & _
+        "ORDER BY Bikes.CBCID DESC;"
+'    MsgBox searchString
+    Me.BikeLog.RowSource = searchString
+    Me.BikeLog.Requery
+End Sub
+
+Private Sub StartDateBox_LostFocus()
+    If IsDate(Me.StartDateBox) And IsDate(Me.EndDateBox) Then
+        SetSearch
+    Else
+        MsgBox "Dates required to run log"
+    End If
+End Sub
+
+Private Sub SubmitButton_Click()
+    Dim fName As String, DiRectory As String
+    Me.BikeLog.Locked = False
+    Me.BikeLog.Enabled = True
+    Me.BikeLog.SetFocus
+    Me.SubmitButton.Visible = False
+    
+    Randomize
+    With CurrentProject
+        DiRectory = Left(.FullName, InStr(.FullName, .Name) - 1)
+    End With
+    fName = DiRectory & "Police Report - " & Month(Date) & "-" & Day(Date) & "-" & Int((1000) * Rnd()) & ".pdf"
+    MsgBox fName
+    DoCmd.OutputTo acOutputForm, , acFormatPDF, fName, True, , , acExportQualityPrint
+
+End Sub
+
+
+
+
+
+===============
+Module1
+===============
+Option Compare Database
+
+ Sub AllCodeToDesktop()
+   ''The reference for the FileSystemObject Object is Windows Script Host Object Model
+   ''but it not necessary to add the reference for this procedure.
+
+   Dim fs As Object
+   Dim f As Object
+   Dim strMod As String
+   Dim mdl As Object
+   Dim i As Integer
+
+   Set fs = CreateObject("Scripting.FileSystemObject")
+
+   ''Set up the file.
+   ''SpFolder is a small function, but it would be better to fill in a
+   ''path name instead of SpFolder(Desktop), eg "c:\users\somename\desktop"
+   Set f = fs.CreateTextFile("C:\Users\night\Desktop\OldCBCDB" & "\" _
+       & Replace(CurrentProject.Name, ".", "") & ".txt")
+
+   ''For each component in the project ...
+   For Each mdl In VBE.ActiveVBProject.VBComponents
+       ''using the count of lines ...
+       i = VBE.ActiveVBProject.VBComponents(mdl.Name).codemodule.CountOfLines
+       ''put the code in a string ...
+       If i > 0 Then
+          strMod = VBE.ActiveVBProject.VBComponents(mdl.Name).codemodule.Lines(1, i)
+       End If
+       ''and then write it to a file, first marking the start with
+       ''some equal signs and the component name.
+       f.writeline String(15, "=") & vbCrLf & mdl.Name _
+           & vbCrLf & String(15, "=") & vbCrLf & strMod
+   Next
+
+   ''Close eveything
+   f.Close
+   Set fs = Nothing
+   End Sub
+
