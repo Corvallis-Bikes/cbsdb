@@ -36,6 +36,7 @@ class BikeListView(generic.ListView):
     creates bike_list variable that can be used in html
     """
     model = Bike
+    paginate_by = 10
 
 class BikeDetailView(generic.DetailView):
     """
