@@ -1,7 +1,7 @@
-from django.shortcuts import render
-from django.views import generic
-from .forms import BikeForm
 from .models import Bike
+from .forms import BikeForm
+from django.views import generic
+from django.shortcuts import render, redirect
 # Create your views here.
 
 
@@ -28,6 +28,7 @@ def addbike(request, template_name='add.html'):
         if form.is_valid():
             print(request.POST)
             form.save()
+        return redirect('bikelist')
     form = BikeForm(request.POST or None)
     return render(request, template_name, {'form': form})
 
