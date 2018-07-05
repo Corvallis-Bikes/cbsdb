@@ -1,0 +1,15 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>Vin: {{ bike.vin }}</h1>
+
+  <!-- <p><strong>Author:</strong> <a href="">{{ book.author }}</a></p> author detail link not yet defined -->
+  <p><strong>Model:</strong> {{ bike.model }}</p>
+  <p><strong>Type:</strong> {{ bike.bike_type }}</p> 
+  <p><strong>Vin:</strong> {{ bike.vin }}</p>  
+  <p><strong>State:</strong> {{ bike.vin }}</p>  
+  <p><strong>Description:</strong> {{ bike.description }}</p>  
+  <p><strong>Created:</strong> {{ bike.created_at }}</p>  
+  <p><strong>Updated:</strong> {{ bike.updated_at }}</p>  
+
+{% endblock %}
