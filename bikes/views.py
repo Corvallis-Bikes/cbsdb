@@ -1,7 +1,8 @@
 from .models import Bike
-from .forms import BikeForm
+from .forms import BikeForm, BikeChoice
 from django.views import generic
 from django.shortcuts import render, redirect
+from django.shortcuts import get_object_or_404
 # Create your views here.
 
 
@@ -44,3 +45,20 @@ class BikeDetailView(generic.DetailView):
     creates bike_list variable that can be used in html
     """
     model = Bike
+
+def BikeSelect(request):
+    bike_list  = BikeChoice()
+    if request.POST.get('bikes'):  # also works with get!!
+        selected = request.POST.get('bikes')
+        query_results = Bike.objects.filter(id=selected)
+        #get_object_or_404(Bike, pk=request.POST.get('id'))
+        # get the user you want (connect for example) in the var "user"
+    else:
+        query_results = Bike.objects.order_by('-id')[:5] #reverse then take first 5
+
+    context = {
+            'query_results': query_results,
+            'bike_list': bike_list,
+            }
+
+    return render(request, 'bikes/bike_select.html', context)

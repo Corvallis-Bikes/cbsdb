@@ -35,4 +35,4 @@ class Bike(models.Model):
         """
         Returns the url to access a detail record for this book.
         """
-        return reverse('bike-detail', args=[str(self.id)])
+        return reverse('bike_detail', args=[str(self.id)])
