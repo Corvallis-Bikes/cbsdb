@@ -9,4 +9,5 @@ class BikeForm(ModelForm):
                   'description','created_at']
 
 class BikeChoice(forms.Form):
-    bikes = forms.ModelChoiceField(queryset=Bike.objects.all())
+    bikes = forms.ModelChoiceField(queryset=Bike.objects.all(),
+                widget=forms.Select(attrs={"onChange":'this.form.submit();'}))

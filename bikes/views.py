@@ -48,8 +48,8 @@ class BikeDetailView(generic.DetailView):
 
 def BikeSelect(request):
     bike_list  = BikeChoice()
-    if request.POST.get('bikes'):  # also works with get!!
-        selected = request.POST.get('bikes')
+    if request.GET.get('bikes'):  # also works with push!!
+        selected = request.GET.get('bikes')
         query_results = Bike.objects.filter(id=selected)
         #get_object_or_404(Bike, pk=request.POST.get('id'))
         # get the user you want (connect for example) in the var "user"
