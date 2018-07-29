@@ -1,15 +1,100 @@
 {% extends "base_generic.html" %}
 
 {% block content %}
-<h1>Home of CBSDB</h1>
+  <p>The datebase contains  {{ num_bikes }} bikes</p>
 
-  <p>Welcome to <em>CBSDB</em>, a Django based site.</p>
+ <div class="container">
+  <div class="row">
+    <div class="col-sm">
+      <button type="button" action="submit" class="btn btn-primary">
+      Cash Register
+      </button>
+      <button type="button" action="submit" class="btn btn-primary">
+      Donate / Recycle Bicycles
+      </button>
+    </div>
+    <div class="col-sm">
+      <button type="button" action="submit" class="btn btn-primary">
+      Add Bikes
+      </button>
+      <button type="button" action="submit" class="btn btn-primary">
+      Add Users
+      </button>
+    </div>
+    <div class="col-sm">
+      <button type="button" action="submit" class="btn btn-primary">
+      User Search
+      </button>
+      <button type="button" action="submit" class="btn btn-primary">
+      Sales Search
+      </button>
+      <button type="button" action="submit" class="btn btn-primary">
+      Day Search
+      </button>
+    </div>
+    <div class="col-sm">
+      <button type="button" action="submit" class="btn btn-primary">
+      Police Report 
+      </button>
+      <button type="button" action="submit" class="btn btn-primary">
+      Log off all users
+      </button>
+      <button type="button" action="submit" class="btn btn-primary">
+      End Day
+      </button>
+    </div>
+  </div>
 
-<h2>Dynamic content</h2>
+  <div class="row">
+    <div class="col-sm">
+      <form action="" method="post">
+        <h2>Sign in:</h2>
+        1) Select name (add modelchoicefield for user here)
+        </br>
+        2) Volunteering? (add check box for vol)
+        </br>
+        3) 
+        <button type="button" action="submit" class="btn btn-primary">
+        Submit
+        </button>
+      </form>
 
-  <p>The datebase has the following record counts:</p>
-  <ul>
-    <li><strong>Bikes:</strong> {{ num_bikes }}</li>
-  </ul>
+      <form action="" method="post">
+        <h2>Review User Info:</h2>
+        1) Select name (add modelchoicefield for user here)
+        </br>
+        2) Volunteering? (add check box for vol)
+        </br>
+        3) 
+        <button type="button" action="submit" class="btn btn-primary">
+        Submit
+        </button>
+      </form>
+
+      <form action="" method="post">
+        <h2>Database Comments:</h2>
+        <button type="button" action="submit" class="btn btn-primary">
+        Submit
+        </button>
+      </form>
+
+    </div>
+    <div class="col-sm">
+      <button type="button" action="submit" class="btn btn-primary">
+      Bike Library Search
+      </button>
+
+
+      <form action="" method="post">
+        <h2>Todays Patrons:</h2>
+        (Selectable list of logged in patrons)
+        <button type="button" action="submit" class="btn btn-primary">
+        Signout
+        </button>
+      </form>
+
+    </div>
+  </div>
+</div> </ul>
 
 {% endblock %}
