@@ -39,7 +39,7 @@ class Bike(models.Model):
                      ('W', 'White'))
 
 
-    # id (pk) key is atomatically created by django
+    id = models.AutoField(primary_key=True)
     make = models.TextField()
     model = models.TextField()
     vin = models.IntegerField(null=True, blank=True)
@@ -64,8 +64,10 @@ class Bike(models.Model):
                                 default='WT')
     value = models.DecimalField(max_digits=6, decimal_places=2)
     #manager_people_id = models.ForeignKey(to=,
+    #                                       null=True,
     #                                       on_delete=models.deletion.SET_NULL)
     #owner_people_id = models.ForeignKey(to=,
+    #                                     null=True,
     #                                     on_delete=models.deletion.SET_NULL)
 
     def __str__(self):
@@ -78,3 +80,28 @@ class Bike(models.Model):
         Returns the url to access a detail record for this book.
         """
         return reverse('bike-detail', args=[str(self.id)])
+
+class Sale(models.Model):
+    SALES_CHOICES = (
+                     ('CM', 'Cash Money'),
+                     ('CC', 'Credit Card'),
+                     ('PP', 'PayPal'),
+
+    sale_time=models.DateTimeField(auto_now=True, primary_key=True)
+    #manager_people_id = models.ForeignKey(to=,
+    #                                       null=True,
+    #                                       on_delete=models.deletion.SET_NULL)
+    #buyer_people_id = models.ForeignKey(to=,
+    #                                     null=True,
+    #                                     on_delete=models.deletion.SET_NULL)
+    salestype_id = models.IntegerField(choices=Sales_CHOICES,
+                                       default='CM')
+    price = models.DecimalField(max_digits=6, decimal_places=2)
+    details = models.TextField(null=True)
+    bike_id = models.ForeignKey(to=Bike,
+                                null=True,
+                                on_delete=models.deletion.SET_NULL)
+    notes = models.TextField(null=True)
+
+
+
