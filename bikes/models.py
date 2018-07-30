@@ -87,7 +87,7 @@ class Sale(models.Model):
                      ('CC', 'Credit Card'),
                      ('PP', 'PayPal'),
 
-    sale_time=models.DateTimeField(auto_now=True, primary_key=True)
+    sale_time = models.DateTimeField(auto_now=True, primary_key=True)
     #manager_people_id = models.ForeignKey(to=,
     #                                       null=True,
     #                                       on_delete=models.deletion.SET_NULL)
@@ -103,5 +103,13 @@ class Sale(models.Model):
                                 on_delete=models.deletion.SET_NULL)
     notes = models.TextField(null=True)
 
+class UseLog(models.Model):
+    in_time = models.DateTimeField(auto_now=True, primary_key=True)
+    out_time = models.DateTimeField()
+    #user_people_id = models.ForeignKey(to=,
+    #                                     null=True,
+    #                                     on_delete=models.deletion.SET_NULL)
+    volunteering = models.BooleanField(default=False)
+    bench = models.IntegerField(null=True, blank=True)
 
 
