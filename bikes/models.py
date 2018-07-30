@@ -1,6 +1,88 @@
 from django.db import models
 from django.utils import timezone
 from django.urls import reverse #Used to generate URLs by reversing the URL patterns
+from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.utils.translation import ugettext as _
+from localflavor.models import USStateField
+
+
+class People(models.Model):
+    ROLE_CHOICES = (
+        (4, 'Admin'),
+        (3, 'Manager'),
+        (2, 'Volunteer'),
+        (1, 'User'),
+        (0, 'No Waiver'))
+    FOUND_CHOICES = (
+        (0, 'Internet'),
+        (1, 'FaceBook'),
+        (2, 'Friend'),
+        (3, 'Event'),
+        (4, 'Flyer'),
+        (5, 'Random'),
+        (6, 'Other'))
+    WHY_CHOICES = (
+        (0, 'Work on own bike'),
+        (1, 'Work on friends bike'),
+        (2, 'Buy bike'),
+        (3, 'Get parts'),
+        (4, 'Volunteer'),
+        (5, 'Other'))
+    GENDER_CHOICES = (
+        (1, 'Female'),
+        (2, 'Male'),
+        (3, 'TransMale'),
+        (4, 'TransFemale'),
+        (5, 'Gender NonConforming'),
+        (6, 'Something Else'),
+        (7, 'Decline to Answer'))
+    PRONOUN_CHOICES = (
+        (1, 'He'),
+        (2, 'She'),
+        (3, 'They'),
+        (4, 'Ze'),
+        (5, 'N/A'),
+        (6, 'No Preference'))
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    add_date = models.DateField(auto_now_add=True, primary_key=True)
+    first = models.CharField(max_length=30, blank=True)
+    last = models.CharField(max_length=30, blank=True)
+    email = models.EmailField()
+    phone = models.CharField(max_length=20, blank=True, default='')
+
+    address_1 = models.CharField(_("address"), max_length=128)
+    address_2 = models.CharField(_("address cont'd"), max_length=128, blank=True)
+    city = models.CharField(_("city"), max_length=64, default="Corvallis")
+    state = USStateField(_("state"), default="OR")
+    zip_code = models.CharField(_("zip code"), max_length=5, default="97330")
+
+    whyhere_id = models.IntergerField(choices=WHY_CHOICES,
+                                      default=None, null=True)
+    foundhow_id = models.IntergerField(choices=Found_CHOICES,
+                                       default=None, null=True)
+    volunteer_hrs = models.IntegerField(default=0)
+    bench_hrs = models.IntegerField(default=0)
+    birth_date = models.DateField(null=True, blank=True)
+    gender_id = models.IntergerField(choices=GENDER_CHOICES,
+                                      default=None, null=True)
+    pronoun_id = models.IntergerField(choices=PRONOUN_CHOICES,
+                                      default=None, null=True)
+    role_id = models.PositiveSmallIntegerField(choices=ROLE_CHOICES,
+                                               null=True, blank=True)
+
+    def __str__(self):  # __unicode__ for Python 2
+        return self.user.username
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        people.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    instance.people.save()
 
 class Bike(models.Model):
     BIKE_CHOICES = (
@@ -55,20 +137,20 @@ class Bike(models.Model):
                             blank=True)
     speeds = models.IntegerField(blank=True)
     description = models.TextField(blank=True)
-    #donor_people_id = models.ForeignKey(to=,
-    #                                     on_delete=models.deletion.SET_NULL)
+    donor_people_id = models.ForeignKey(to=People,
+                                        null=True, blank=True
+                                        on_delete=models.deletion.SET_NULL)
     donation_date = models.DateField(auto_now_add=True)
     disposal_date = models.DateField(blank=True)
     state_id = models.CharField(max_length=2,
                                 choices=STATE_CHOICES,
                                 default='WT')
     value = models.DecimalField(max_digits=6, decimal_places=2)
-    #manager_people_id = models.ForeignKey(to=,
-    #                                       null=True,
-    #                                       on_delete=models.deletion.SET_NULL)
-    #owner_people_id = models.ForeignKey(to=,
-    #                                     null=True,
-    #                                     on_delete=models.deletion.SET_NULL)
+    manager_people_id = models.ForeignKey(to=People,
+                                          on_delete=models.deletion.SET_NULL)
+    owner_people_id = models.ForeignKey(to=People,
+                                        null=True, blank=True
+                                        on_delete=models.deletion.SET_NULL)
 
     def __str__(self):
         """
@@ -88,40 +170,38 @@ class Sale(models.Model):
                      ('PP', 'PayPal'),
 
     sale_time = models.DateTimeField(auto_now=True, primary_key=True)
-    #manager_people_id = models.ForeignKey(to=,
-    #                                       null=True,
-    #                                       on_delete=models.deletion.SET_NULL)
-    #buyer_people_id = models.ForeignKey(to=,
-    #                                     null=True,
-    #                                     on_delete=models.deletion.SET_NULL)
+    manager_people_id = models.ForeignKey(to=People,
+                                           on_delete=models.deletion.SET_NULL)
+    buyer_people_id = models.ForeignKey(to=People,
+                                        null=True, blank=True
+                                        on_delete=models.deletion.SET_NULL)
     salestype_id = models.IntegerField(choices=Sales_CHOICES,
                                        default='CM')
     price = models.DecimalField(max_digits=6, decimal_places=2)
     details = models.TextField(null=True)
     bike_id = models.ForeignKey(to=Bike,
-                                null=True,
+                                null=True, blank=True
                                 on_delete=models.deletion.SET_NULL)
     notes = models.TextField(null=True)
 
 class UseLog(models.Model):
     in_time = models.DateTimeField(auto_now=True, primary_key=True)
     out_time = models.DateTimeField()
-    #user_people_id = models.ForeignKey(to=,
-    #                                     null=True,
-    #                                     on_delete=models.deletion.SET_NULL)
+    user_people_id = models.ForeignKey(to=People,
+                                         null=True, blank=True
+                                         on_delete=models.deletion.SET_NULL)
     volunteering = models.BooleanField(default=False)
     bench = models.IntegerField(null=True, blank=True)
 
 class ShiftLog(models.Model):
-    in_time = models.DateTimeField(auto_now=True, primary_key=True)
+    in_time = models.DateTimeField(auto_now_add=True, primary_key=True)
     out_time = models.DateTimeField()
-    #open_manager_people_id = models.ForeignKey(to=,
-    #                                     on_delete=models.deletion.SET_NULL)
-    #open_manager_people_id = models.ForeignKey(to=,
-    #                                     on_delete=models.deletion.SET_NULL)
+    open_manager_people_id = models.ForeignKey(to=People,
+                                         on_delete=models.deletion.SET_NULL)
+    open_manager_people_id = models.ForeignKey(to=People,
+                                         null=True, blank=True
+                                         on_delete=models.deletion.SET_NULL)
     in_cash = models.DecimalField(max_digits=6, decimal_places=2)
     out_cash = models.DecimalField(max_digits=6, decimal_places=2, blank=True)
     in_memo = models.TextField(null=True, blank=True)
     out_memo = models.TextField(null=True, blank=True)
-
-
