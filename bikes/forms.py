@@ -5,5 +5,5 @@ from bikes.models import Bike
 class BikeForm(ModelForm):
     class Meta:
         model = Bike
-        fields = ['model','bike_type','vin','state',
-                  'description','created_at']
+        fields = ['model','biketype_id','vin','state_id',
+                  'description']

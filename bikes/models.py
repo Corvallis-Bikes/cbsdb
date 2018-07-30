@@ -5,7 +5,8 @@ from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.translation import ugettext as _
-from localflavor.models import USStateField
+from localflavor.us.models import USStateField
+from localflavor.us.models import USZipCodeField
 
 
 class People(models.Model):
@@ -56,18 +57,18 @@ class People(models.Model):
     address_2 = models.CharField(_("address cont'd"), max_length=128, blank=True)
     city = models.CharField(_("city"), max_length=64, default="Corvallis")
     state = USStateField(_("state"), default="OR")
-    zip_code = models.CharField(_("zip code"), max_length=5, default="97330")
+    zip_code = USZipCodeField(_("zip code"), default="97330")
 
-    whyhere_id = models.IntergerField(choices=WHY_CHOICES,
+    whyhere_id = models.IntegerField(choices=WHY_CHOICES,
                                       default=None, null=True)
-    foundhow_id = models.IntergerField(choices=Found_CHOICES,
+    foundhow_id = models.IntegerField(choices=FOUND_CHOICES,
                                        default=None, null=True)
     volunteer_hrs = models.IntegerField(default=0)
     bench_hrs = models.IntegerField(default=0)
     birth_date = models.DateField(null=True, blank=True)
-    gender_id = models.IntergerField(choices=GENDER_CHOICES,
+    gender_id = models.IntegerField(choices=GENDER_CHOICES,
                                       default=None, null=True)
-    pronoun_id = models.IntergerField(choices=PRONOUN_CHOICES,
+    pronoun_id = models.IntegerField(choices=PRONOUN_CHOICES,
                                       default=None, null=True)
     role_id = models.PositiveSmallIntegerField(choices=ROLE_CHOICES,
                                                null=True, blank=True)
@@ -95,14 +96,14 @@ class Bike(models.Model):
                     ('F', 'Folding'),
                     ('TR', 'Trike'),
                     ('UN', 'Unicycle'),
-                    ('K', 'Kids'),
+                    ('K', 'Kids'))
 
     STATE_CHOICES = (
                      ('G', 'Green Tag'),
                      ('B', 'Blue Tag'),
                      ('Y', 'Yellow Tag'),
                      ('W', 'White Tag'),
-                     ('O', 'Orange Tag'))
+                     ('O', 'Orange Tag'),
                      ('R', 'Red Tag'))
 
     COLOR_CHOICES = (
@@ -138,7 +139,8 @@ class Bike(models.Model):
     speeds = models.IntegerField(blank=True)
     description = models.TextField(blank=True)
     donor_people_id = models.ForeignKey(to=People,
-                                        null=True, blank=True
+                                        null=True, blank=True,
+                                        related_name='donor_bike_set',
                                         on_delete=models.deletion.SET_NULL)
     donation_date = models.DateField(auto_now_add=True)
     disposal_date = models.DateField(blank=True)
@@ -147,9 +149,12 @@ class Bike(models.Model):
                                 default='WT')
     value = models.DecimalField(max_digits=6, decimal_places=2)
     manager_people_id = models.ForeignKey(to=People,
+                                          null=True,
+                                          related_name='manager_bike_set',
                                           on_delete=models.deletion.SET_NULL)
     owner_people_id = models.ForeignKey(to=People,
-                                        null=True, blank=True
+                                        null=True, blank=True,
+                                        related_name='owner_bike_set',
                                         on_delete=models.deletion.SET_NULL)
 
     def __str__(self):
@@ -167,20 +172,23 @@ class Sale(models.Model):
     SALES_CHOICES = (
                      ('CM', 'Cash Money'),
                      ('CC', 'Credit Card'),
-                     ('PP', 'PayPal'),
+                     ('PP', 'PayPal'))
 
     sale_time = models.DateTimeField(auto_now=True, primary_key=True)
     manager_people_id = models.ForeignKey(to=People,
-                                           on_delete=models.deletion.SET_NULL)
+                                          null=True,
+                                          related_name='manager_sale_set',
+                                          on_delete=models.deletion.SET_NULL)
     buyer_people_id = models.ForeignKey(to=People,
-                                        null=True, blank=True
+                                        null=True, blank=True,
+                                        related_name='buyer_sale_set',
                                         on_delete=models.deletion.SET_NULL)
-    salestype_id = models.IntegerField(choices=Sales_CHOICES,
+    salestype_id = models.IntegerField(choices=SALES_CHOICES,
                                        default='CM')
     price = models.DecimalField(max_digits=6, decimal_places=2)
     details = models.TextField(null=True)
     bike_id = models.ForeignKey(to=Bike,
-                                null=True, blank=True
+                                null=True, blank=True,
                                 on_delete=models.deletion.SET_NULL)
     notes = models.TextField(null=True)
 
@@ -188,7 +196,7 @@ class UseLog(models.Model):
     in_time = models.DateTimeField(auto_now=True, primary_key=True)
     out_time = models.DateTimeField()
     user_people_id = models.ForeignKey(to=People,
-                                         null=True, blank=True
+                                         null=True, blank=True,
                                          on_delete=models.deletion.SET_NULL)
     volunteering = models.BooleanField(default=False)
     bench = models.IntegerField(null=True, blank=True)
@@ -197,10 +205,12 @@ class ShiftLog(models.Model):
     in_time = models.DateTimeField(auto_now_add=True, primary_key=True)
     out_time = models.DateTimeField()
     open_manager_people_id = models.ForeignKey(to=People,
-                                         on_delete=models.deletion.SET_NULL)
+                                               related_name='openman_shiftlog_set',
+                                               on_delete=models.deletion.SET_NULL)
     open_manager_people_id = models.ForeignKey(to=People,
-                                         null=True, blank=True
-                                         on_delete=models.deletion.SET_NULL)
+                                               null=True, blank=True,
+                                               related_name='closeman_shiftlog_set',
+                                               on_delete=models.deletion.SET_NULL)
     in_cash = models.DecimalField(max_digits=6, decimal_places=2)
     out_cash = models.DecimalField(max_digits=6, decimal_places=2, blank=True)
     in_memo = models.TextField(null=True, blank=True)
