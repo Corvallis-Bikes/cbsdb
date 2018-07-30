@@ -112,4 +112,16 @@ class UseLog(models.Model):
     volunteering = models.BooleanField(default=False)
     bench = models.IntegerField(null=True, blank=True)
 
+class ShiftLog(models.Model):
+    in_time = models.DateTimeField(auto_now=True, primary_key=True)
+    out_time = models.DateTimeField()
+    #open_manager_people_id = models.ForeignKey(to=,
+    #                                     on_delete=models.deletion.SET_NULL)
+    #open_manager_people_id = models.ForeignKey(to=,
+    #                                     on_delete=models.deletion.SET_NULL)
+    in_cash = models.DecimalField(max_digits=6, decimal_places=2)
+    out_cash = models.DecimalField(max_digits=6, decimal_places=2, blank=True)
+    in_memo = models.TextField(null=True, blank=True)
+    out_memo = models.TextField(null=True, blank=True)
+
 
