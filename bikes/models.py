@@ -4,14 +4,24 @@ from django.urls import reverse #Used to generate URLs by reversing the URL patt
 
 class Bike(models.Model):
     BIKE_CHOICES = (
-                    ('RD', 'Road Bike'),
-                    ('CB', 'Cruiser Bike'),
-                    ('MT', 'Mountain Bike'))
+                    ('RD', 'Road'),
+                    ('MT', 'Mountain'),
+                    ('H', 'Hybrid'),
+                    ('CB', 'Cruiser'),
+                    ('RT', 'Recumbent'),
+                    ('TM', 'Tandem'),
+                    ('F', 'Folding'),
+                    ('TR', 'Trike'),
+                    ('UN', 'Unicycle'),
+                    ('K', 'Kids'),
 
     STATE_CHOICES = (
-                     ('GT', 'Green Tag'),
-                     ('WT', 'White Tag'),
-                     ('BT', 'Black Tag'))
+                     ('G', 'Green Tag'),
+                     ('B', 'Blue Tag'),
+                     ('Y', 'Yellow Tag'),
+                     ('W', 'White Tag'),
+                     ('O', 'Orange Tag'))
+                     ('R', 'Red Tag'))
 
     COLOR_CHOICES = (
                      ('V', 'Violet'),
@@ -27,7 +37,6 @@ class Bike(models.Model):
                      ('BR', 'Brown'),
                      ('BL', 'Black'),
                      ('W', 'White'))
-
 
 
     # id (pk) key is atomatically created by django
