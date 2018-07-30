@@ -40,23 +40,39 @@ class Bike(models.Model):
 
 
     # id (pk) key is atomatically created by django
+    make = models.TextField()
     model = models.TextField()
-    bike_type = models.CharField(max_length=2,
-                                    choices=BIKE_CHOICES,
-                                    default='CB')
     vin = models.IntegerField(null=True, blank=True)
-    state = models.CharField(max_length=2,
+    color_id = models.CharField(max_length=2,
+                                choices=BIKE_CHOICES,
+                                default=None,
+                                null=True)
+    biketype_id = models.CharField(max_length=2,
+                                 choices=BIKE_CHOICES,
+                                 default=None,
+                                 null=True)
+    size = models.CharField(max_length=6,
+                            blank=True)
+    speeds = models.IntegerField(blank=True)
+    description = models.TextField(blank=True)
+    #donor_people_id = models.ForeignKey(to=,
+    #                                     on_delete=models.deletion.SET_NULL)
+    donation_date = models.DateField(auto_now_add=True)
+    disposal_date = models.DateField(blank=True)
+    state_id = models.CharField(max_length=2,
                                 choices=STATE_CHOICES,
                                 default='WT')
-    description = models.TextField(null=True, blank=True)
-    created_at = models.DateTimeField(default=timezone.now)
-    updated_at = models.DateTimeField(null=True, blank=True)
+    value = models.DecimalField(max_digits=6, decimal_places=2)
+    #manager_people_id = models.ForeignKey(to=,
+    #                                       on_delete=models.deletion.SET_NULL)
+    #owner_people_id = models.ForeignKey(to=,
+    #                                     on_delete=models.deletion.SET_NULL)
 
     def __str__(self):
         """
         String for representing the Model object.
         """
-        return self.model
+        return "%s %s %s" % (self.color_id, self.make, self.model)
     def get_absolute_url(self):
         """
         Returns the url to access a detail record for this book.
