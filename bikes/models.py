@@ -9,9 +9,26 @@ class Bike(models.Model):
                     ('MT', 'Mountain Bike'))
 
     STATE_CHOICES = (
-                    ('GT', 'Green Tag'),
-                    ('WT', 'White Tag'),
-                    ('BT', 'Black Tag'))
+                     ('GT', 'Green Tag'),
+                     ('WT', 'White Tag'),
+                     ('BT', 'Black Tag'))
+
+    COLOR_CHOICES = (
+                     ('V', 'Violet'),
+                     ('IN', 'Indego'),
+                     ('BL', 'Blue'),
+                     ('TR', 'Turquoise'),
+                     ('GR', 'Green'),
+                     ('Y', 'Yellow'),
+                     ('GD', 'Gold'),
+                     ('O', 'Orange'),
+                     ('R', 'Red'),
+                     ('M', 'Magenta'),
+                     ('BR', 'Brown'),
+                     ('BL', 'Black'),
+                     ('W', 'White'))
+
+
 
     # id (pk) key is atomatically created by django
     model = models.TextField()
