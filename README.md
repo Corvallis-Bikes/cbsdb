@@ -1,7 +1,7 @@
 ![cbcdb](https://user-images.githubusercontent.com/7052993/38165757-5e7aca52-34cd-11e8-985d-17a38115de20.png)
 
-This Project was started to create an Open Source, modern language version of
-the bike and used database and POS system the [Corvallis Bicycle
+This Project was started to create an Open Source, modern programming language version of
+the bike/user database and POS system the [Corvallis Bicycle
 Collective](www.corvallisbikes.org) has
 been using for a number of years. We hope this will eventually be useful to
 other community bike projects around the country and the world.
