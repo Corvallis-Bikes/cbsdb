@@ -15,7 +15,7 @@ class People(models.Model):
         (3, 'Manager'),
         (2, 'Volunteer'),
         (1, 'User'),
-        (0, 'No Waiver'))
+        (0, 'No Waiver')) # we probably don't need this option, when we save a People, they will have filled out the waiver?
     FOUND_CHOICES = (
         (0, 'Internet'),
         (1, 'FaceBook'),
@@ -47,10 +47,11 @@ class People(models.Model):
         (5, 'N/A'),
         (6, 'No Preference'))
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    add_date = models.DateField(auto_now_add=True, primary_key=True)
-    first = models.CharField(max_length=30, blank=True)
-    last = models.CharField(max_length=30, blank=True)
-    email = models.EmailField()
+    # the commented out fields below come in with the User model
+    # add_date = models.DateField(auto_now_add=True, primary_key=True)
+    # first = models.CharField(max_length=30, blank=True)
+    # last = models.CharField(max_length=30, blank=True)
+    # email = models.EmailField()
     phone = models.CharField(max_length=20, blank=True, default='')
 
     address_1 = models.CharField(_("address"), max_length=128)
@@ -71,19 +72,20 @@ class People(models.Model):
     pronoun_id = models.IntegerField(choices=PRONOUN_CHOICES,
                                       default=None, null=True)
     role_id = models.PositiveSmallIntegerField(choices=ROLE_CHOICES,
-                                               null=True, blank=True)
+                                               null=True, blank=True,
+                                               default=1)
 
-    def __str__(self):  # __unicode__ for Python 2
+    def __str__(self):
         return self.user.username
 
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
-    if created:
-        people.objects.create(user=instance)
+   if created:
+       People.objects.create(user=instance)
 
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
-    instance.people.save()
+   instance.people.save()
 
 class Bike(models.Model):
     BIKE_CHOICES = (
