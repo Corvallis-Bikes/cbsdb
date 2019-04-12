@@ -38,7 +38,8 @@ USE_TZ = True
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 DATABASES = {
-    'default': env.db('DATABASE_URL'),
+    'default': env.db('DATABASE_URL',
+        'postgresql://cbsdb_admin:@localhost:5432/cbsdb'),
 }
 DATABASES['default']['ATOMIC_REQUESTS'] = True
 
@@ -60,6 +61,7 @@ DJANGO_APPS = [
     'django.contrib.staticfiles',
     # 'django.contrib.humanize', # Handy template tags
     'django.contrib.admin',
+    'bikes.apps.BikesConfig',
 ]
 THIRD_PARTY_APPS = [
     'crispy_forms',
