@@ -1,5 +1,5 @@
 from .models import Bike
-from .forms import BikeForm
+from .forms import BikeForm, UserForm, PeopleForm
 from django.views import generic
 from django.shortcuts import render, redirect
 # Create your views here.
@@ -31,6 +31,13 @@ def addbike(request, template_name='add.html'):
         return redirect('bikelist')
     form = BikeForm(request.POST or None)
     return render(request, template_name, {'form': form})
+
+def waiver(request, template_name='waiver.html'):
+    form = UserForm()
+    p_form = PeopleForm()
+    context = {'form': form,
+                'p_form': p_form}
+    return render(request, template_name, context)
 
 class BikeListView(generic.ListView):
     """
