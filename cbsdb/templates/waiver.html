@@ -1,0 +1,105 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+<div class="bg-warning text-center">
+  <h1>Corvallis Bicycle Collective</h1>
+  <h4>Shop Use and Shop Purchase Agreement and Waiver</h4>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  {{ p_form.as_p }}
+</br>
+  <button type="submit">Save changes</button>
+</form>
+<p><b>As Volunteer, participant, or customer at the Corvallis Bicycle Collective's Bike Shop ("the Shop"), I agree as follows:</b></p>
+
+<form action="/action_page.php">
+  <div class="container">
+    <div class="row bg-light text-dark">
+      <div class="col-3">
+          <b>Inherent Risks</b>
+          <input type="checkbox" name="vehicle1" value="Bike">
+      </div>
+      <div class="col-9 text-center">I understand that bicycling and the use of the shop may carry 
+        certain inherent dangers and risks which may or may not be readily foreseeable, 
+        including property damage, theft, personal injury or death.
+      </div>
+    </div>
+    <div class="row bg-dark text-white">
+      <div class="col-3">
+        <b>Release of Liability</b>
+        <input type="checkbox" name="vehicle1" value="Bike">
+      </div>
+      <div class="col-9 text-center">I release and agree to hold harmless the Corvallis Bicycle 
+        Collective, and all of its volunteers, members, directors, agents, employees, 
+        contractors, donors, or participants ( collectively, "the CBC") for liability 
+        from any damages, injury or loss which may be caused by the CBC, including any 
+        loss caused by negligence.
+      </div>
+    </div>
+    <div class="row bg-light text-dark">
+      <div class="col-3">
+        <b>No Warranty</b>
+        <input type="checkbox" name="vehicle1" value="Bike">
+      </div>
+      <div class="col-9 text-center">I understand the use of the Shop and all bicycles, bicycle parts, 
+        tools, advice, and other goods and services are provided "AS IS" and "as available" 
+        and are provided with NO WARRANTY of any kind, express or implied, including 
+        without limitation any warranty of merchantibility, fitness for a particular 
+        purpose, or non-infringement. I agree to release the CBC from any liability 
+        for loss, injury, or damages caused by the use of any bicycle, parts, tools, 
+        goods, services, or advice which is obtained from the CBC, including the cost 
+        of procuring substitute goods or services.
+      </div>
+    </div>
+    <div class="row bg-dark text-white">
+      <div class="col-3">
+        <b>Indemnification</b>
+        <input type="checkbox" name="vehicle1" value="Bike">
+      </div>
+      <div class="col-9 text-center">I agree to indemnify the CBC from, and reimburse 
+        the CBC for, any and all damages, costs, claims, or demands, including reasonable 
+        attorney's fees, which may be owed to any third party and which are due to, arise 
+        from, or relate to my negligent, reckless, criminal, or unauthorized conduct or 
+        use of the Shop.
+      </div>
+    </div>
+    <div class="row bg-light text-dark">
+      <div class="col-3">
+          <b>Photograph Rights</b>
+          <input type="checkbox" name="vehicle1" value="Bike">
+      </div>
+      <div class="col-9 text-center">I grant the Corvallis Bicycle Collective the 
+        right to use and publish photographs of me while present at the Shop in any 
+        advertisement, display, website, or any promotional material produced to 
+        benefit the organization.
+      </div>
+    </div>
+    <div class="row bg-dark text-white">
+      <div class="col-3">
+        <b>Participant Responsibilities</b>
+        <input type="checkbox" name="vehicle1" value="Bike">
+      </div>
+      <div class="col-9 text-center">I have read and promise to adhere to the Shop 
+        Code of Conduct. I will use tools only as intended, ask questions when I need 
+        help using a to, and return the tools in the condition that they were lent.
+      </div>
+    </div>
+    <div class="row bg-light text-dark">
+      <div class="col-3">
+        <b>Complete Agreement</b>
+        <input type="checkbox" name="vehicle1" value="Bike">
+      </div>
+      <div class="col-9 text-center">I understand that this waiver constitutes the 
+        complete agreement between the CBC and me and that no oral promise by any 
+        person at any time may modify this agreement. I am 18 years of age orr older 
+        and have capacity to sign this agreement.
+      </div>
+    </div>
+  </div>
+ 
+  <input type="submit" value="Submit">
+</form>
+{% endblock %}
