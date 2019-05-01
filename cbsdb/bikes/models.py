@@ -128,7 +128,7 @@ class Bike(models.Model):
     id = models.AutoField(primary_key=True)
     make = models.TextField()
     model = models.TextField()
-    vin = models.IntegerField(null=True, blank=True)
+    vin = models.CharField(max_length=50,null=True, blank=True)
     color_id = models.CharField(max_length=2,
                                 choices=BIKE_CHOICES,
                                 default=None,
@@ -138,15 +138,17 @@ class Bike(models.Model):
                                  default=None,
                                  null=True)
     size = models.CharField(max_length=6,
-                            blank=True)
-    speeds = models.IntegerField(blank=True)
-    description = models.TextField(blank=True)
+                            blank=True,
+                            null=True)
+    speeds = models.IntegerField(blank=True,
+                                 null=True)
+    description = models.TextField(blank=True, null=True)
     donor_people_id = models.ForeignKey(to=People,
                                         null=True, blank=True,
                                         related_name='donor_bike_set',
                                         on_delete=models.deletion.SET_NULL)
     donation_date = models.DateField(auto_now_add=True)
-    disposal_date = models.DateField(blank=True)
+    disposal_date = models.DateField(blank=True, null=True)
     state_id = models.CharField(max_length=2,
                                 choices=STATE_CHOICES,
                                 default='WT')

@@ -1,13 +1,14 @@
 from django.forms import ModelForm
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+User = get_user_model()
 
-from bikes.models import Bike, People
+from bikes import models
 
 class BikeForm(ModelForm):
     class Meta:
-        model = Bike
-        fields = ['model','biketype_id','vin','state_id',
-                  'description']
+        model = models.Bike
+        fields = ['make', 'model','biketype_id','vin','state_id',
+                  'description', 'value']
 
 class UserForm(ModelForm):
     class Meta:
@@ -16,8 +17,8 @@ class UserForm(ModelForm):
 
 class PeopleForm(ModelForm):
     class Meta:
-        model = People
+        model = models.People
         fields = ('address_1', 'address_2', 'city', 'state', 'zip_code',
                     'whyhere_id', 'foundhow_id', 'birth_date', 'gender_id',
                     'pronoun_id')
-      
+
